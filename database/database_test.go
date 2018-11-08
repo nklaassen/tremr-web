@@ -72,3 +72,33 @@ func TestGetAllMedicines(t *testing.T) {
 		t.Errorf("Failed to get medicines")
 	}
 }
+
+func TestAddExercise(t *testing.T) {
+	exerciseRepo, err := NewExerciseRepo(db)
+	if err != nil {
+		t.Errorf("Failed to create ExerciseRepo")
+	}
+
+	var exercise api.Exercise
+	exercise.Name = "test exercise"
+	exercise.Unit = "10 reps"
+	exercise.Schedule.Mo = true
+	exercise.Schedule.We = true
+	exercise.Schedule.Fr = true
+	err = exerciseRepo.Add(&exercise)
+	if err != nil {
+		t.Errorf("Failed to add exercise")
+	}
+}
+
+func TestGetAllExercises(t *testing.T) {
+	exerciseRepo, err := NewExerciseRepo(db)
+	if err != nil {
+		t.Errorf("Failed to create ExerciseRepo")
+	}
+
+	_, err = exerciseRepo.GetAll()
+	if err != nil {
+		t.Errorf("Failed to get exercises")
+	}
+}

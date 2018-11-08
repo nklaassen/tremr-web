@@ -28,7 +28,12 @@ func main() {
 		log.Fatal("Failed to create MedicineRepo: ", err)
 	}
 
-	apiContext := &api.Context{tremorRepo, medicineRepo}
+	exerciseRepo, err := database.NewExerciseRepo(db)
+	if err != nil {
+		log.Fatal("Failed to create ExerciseRepo: ", err)
+	}
+
+	apiContext := &api.Context{tremorRepo, medicineRepo, exerciseRepo}
 	apiserver := api.NewRouter(apiContext)
 
 	fileserver := http.FileServer(http.Dir("www"))
