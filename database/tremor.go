@@ -1,12 +1,13 @@
-package sqlite
+package database
 
 import (
 	"github.com/jmoiron/sqlx"
-	"github.com/nklaassen/tremr-web/datastore"
+	"github.com/nklaassen/tremr-web/api"
+	"log"
 )
 
 const (
-	createTremors = `create table if not exists tremors(
+	tremorsCreate = `create table if not exists tremors(
 		tid INTEGER PRIMARY KEY AUTOINCREMENT,
 		postural INTEGER NOT NULL,
 		resting INTEGER NOT NULL,
@@ -22,27 +23,29 @@ type tremorRepo struct {
 	getAll *sqlx.Stmt
 }
 
-func CreateTremorRepo() datastore.TremorRepo {
-	db.MustExec(createTremors)
+func NewTremorRepo() api.TremorRepo {
+	_, err := db.Exec(tremorsCreate)
+	if err != nil {
+		log.Fatal("Failed to create tremor table", err)
+	}
 	t := new(tremorRepo)
-	var err error
 	t.add, err = db.Preparex(tremorInsert)
 	if err != nil {
-		panic(err)
+		log.Fatal("Failed to create prepared statement", err)
 	}
 	t.getAll, err = db.Preparex(tremorSelect)
 	if err != nil {
-		panic(err)
+		log.Fatal("Failed to create prepared statement", err)
 	}
 	return t
 }
 
-func (t *tremorRepo) Add(tremor *datastore.Tremor) (err error) {
+func (t *tremorRepo) Add(tremor *api.Tremor) (err error) {
 	_, err = t.add.Exec(tremor.Postural, tremor.Resting, true)
 	return
 }
 
-func (t *tremorRepo) GetAll() (tremors []datastore.Tremor, err error) {
+func (t *tremorRepo) GetAll() (tremors []api.Tremor, err error) {
 	err = t.getAll.Select(&tremors)
 	return
 }

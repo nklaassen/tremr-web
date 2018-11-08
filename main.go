@@ -4,15 +4,14 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/nklaassen/tremr-web/api"
-	"github.com/nklaassen/tremr-web/datastore/sql"
+	"github.com/nklaassen/tremr-web/database"
 	"log"
 	"net/http"
 	"os"
 )
 
 func main() {
-	apiContext := &api.Context{sql.CreateTremorRepo()}
-
+	apiContext := &api.Context{database.NewTremorRepo()}
 	apiserver := api.NewRouter(apiContext)
 
 	fileserver := http.FileServer(http.Dir("www"))
