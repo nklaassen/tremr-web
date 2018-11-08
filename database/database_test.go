@@ -5,6 +5,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nklaassen/tremr-web/api"
 	"testing"
+	"math/rand"
+	"time"
 )
 
 var db *sqlx.DB
@@ -12,6 +14,10 @@ var db *sqlx.DB
 func init() {
 	var err error
 	if db, err = sqlx.Open("sqlite3", "test_db.sqlite3"); err != nil {
+		panic(err)
+	}
+	_, err = db.Exec("drop table tremors; drop table medicines; drop table exercises")
+	if err != nil {
 		panic(err)
 	}
 }
@@ -22,13 +28,14 @@ func TestAddTremor(t *testing.T) {
 		t.Errorf("Failed to create TremorRepo")
 	}
 
-	intPtr := func(i int) *int {
-		return &i
-	}
-
 	var tremor api.Tremor
-	tremor.Resting = intPtr(43)
-	tremor.Postural = intPtr(67)
+	resting := 20 + rand.Intn(60)
+	postural := 20 + rand.Intn(60)
+	tremor.Resting = &resting
+	tremor.Postural = &postural
+	now := time.Now()
+	tremor.Date = &now
+
 	err = tremorRepo.Add(&tremor)
 	if err != nil {
 		t.Errorf("Failed to add tremor")
@@ -53,13 +60,11 @@ func TestAddMedicine(t *testing.T) {
 		t.Errorf("Failed to create MedicineRepo")
 	}
 
-	strPtr := func(str string) *string {
-		return &str
-	}
-
 	var medicine api.Medicine
-	medicine.Name = strPtr("testmed")
-	medicine.Dosage = strPtr("10 mL")
+	name := "test med"
+	medicine.Name = &name
+	dosage := "10 mL"
+	medicine.Dosage = &dosage
 	medicine.Schedule = &api.Schedule{Mo: true, We: true, Fr: true}
 	err = medicineRepo.Add(&medicine)
 	if err != nil {
@@ -85,13 +90,11 @@ func TestAddExercise(t *testing.T) {
 		t.Errorf("Failed to create ExerciseRepo")
 	}
 
-	strPtr := func(str string) *string {
-		return &str
-	}
-
 	var exercise api.Exercise
-	exercise.Name = strPtr("test exercise")
-	exercise.Unit = strPtr("10 reps")
+	name := "test exercise"
+	exercise.Name = &name
+	unit := "10 reps"
+	exercise.Unit = &unit
 	exercise.Schedule = &api.Schedule{Mo: true, We: true, Fr: true}
 	err = exerciseRepo.Add(&exercise)
 	if err != nil {

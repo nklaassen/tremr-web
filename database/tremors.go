@@ -3,6 +3,7 @@ package database
 import (
 	"github.com/jmoiron/sqlx"
 	"github.com/nklaassen/tremr-web/api"
+	"time"
 )
 
 const (
@@ -10,10 +11,9 @@ const (
 		tid INTEGER PRIMARY KEY AUTOINCREMENT,
 		postural INTEGER NOT NULL,
 		resting INTEGER NOT NULL,
-		completed BOOL NOT NULL,
-		date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		date DATETIME NOT NULL
 	)`
-	tremorInsert = "insert into tremors(postural, resting, completed) values(?, ?, ?)"
+	tremorInsert = "insert into tremors(postural, resting, date) values(?, ?, ?)"
 	tremorSelect = "select * from tremors"
 )
 
@@ -40,7 +40,11 @@ func NewTremorRepo(db *sqlx.DB) (api.TremorRepo, error) {
 }
 
 func (t *tremorRepo) Add(tremor *api.Tremor) (err error) {
-	_, err = t.add.Exec(tremor.Postural, tremor.Resting, true)
+	if tremor.Date == nil {
+		now := time.Now()
+		tremor.Date = &now
+	}
+	_, err = t.add.Exec(tremor.Postural, tremor.Resting, tremor.Date)
 	return
 }
 

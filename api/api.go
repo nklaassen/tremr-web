@@ -2,14 +2,14 @@ package api
 
 import (
 	"github.com/gorilla/mux"
+	"time"
 )
 
 type Tremor struct {
 	Tid       int    `json:"tid"`
 	Resting   *int   `json:"resting"`
 	Postural  *int   `json:"postural"`
-	Completed bool   `json:"completed"`
-	Date      string `json:"date"`
+	Date      *time.Time `json:"date"`
 }
 
 type Schedule struct {
