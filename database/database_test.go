@@ -1,10 +1,10 @@
 package database
 
 import (
-	"testing"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/nklaassen/tremr-web/api"
+	"testing"
 )
 
 var db *sqlx.DB
@@ -39,6 +39,36 @@ func TestGetAllTremors(t *testing.T) {
 
 	_, err = tremorRepo.GetAll()
 	if err != nil {
-		t.Errorf("Failed to add tremor")
+		t.Errorf("Failed to get tremors")
+	}
+}
+
+func TestAddMedicine(t *testing.T) {
+	medicineRepo, err := NewMedicineRepo(db)
+	if err != nil {
+		t.Errorf("Failed to create MedicineRepo")
+	}
+
+	var medicine api.Medicine
+	medicine.Name = "testmed"
+	medicine.Dosage = "10 mL"
+	medicine.Schedule.Mo = true
+	medicine.Schedule.We = true
+	medicine.Schedule.Fr = true
+	err = medicineRepo.Add(&medicine)
+	if err != nil {
+		t.Errorf("Failed to add medicine")
+	}
+}
+
+func TestGetAllMedicines(t *testing.T) {
+	medicineRepo, err := NewMedicineRepo(db)
+	if err != nil {
+		t.Errorf("Failed to create MedicineRepo")
+	}
+
+	_, err = medicineRepo.GetAll()
+	if err != nil {
+		t.Errorf("Failed to get medicines")
 	}
 }

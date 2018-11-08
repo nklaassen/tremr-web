@@ -3,10 +3,10 @@ package main
 import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/nklaassen/tremr-web/api"
 	"github.com/nklaassen/tremr-web/database"
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/jmoiron/sqlx"
 	"log"
 	"net/http"
 	"os"
@@ -20,10 +20,15 @@ func main() {
 
 	tremorRepo, err := database.NewTremorRepo(db)
 	if err != nil {
-		log.Fatal("Failed to TremorRepo: ", err)
+		log.Fatal("Failed to create TremorRepo: ", err)
 	}
 
-	apiContext := &api.Context{tremorRepo}
+	medicineRepo, err := database.NewMedicineRepo(db)
+	if err != nil {
+		log.Fatal("Failed to create MedicineRepo: ", err)
+	}
+
+	apiContext := &api.Context{tremorRepo, medicineRepo}
 	apiserver := api.NewRouter(apiContext)
 
 	fileserver := http.FileServer(http.Dir("www"))

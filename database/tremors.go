@@ -18,7 +18,7 @@ const (
 )
 
 type tremorRepo struct {
-	add *sqlx.Stmt
+	add    *sqlx.Stmt
 	getAll *sqlx.Stmt
 }
 

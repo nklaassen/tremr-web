@@ -13,8 +13,24 @@ At this point, try opening your browser to `localhost:8080`.
 
 If you just want to test the API, try the following:
 
-    curl -X POST -i http://localhost:8080/api/tremors --data '{"resting": 38, "postural": 47}'
+    curl -X POST -i http://localhost:8080/api/tremors --data '
+        {
+            "resting": 38,
+            "postural": 47
+        }'
     curl -X GET localhost:8080/api/tremors
+
+    curl -X POST localhost:8080/api/meds --data '
+        {
+            "name": "testmed",
+            "dosage": "10 mL",
+            "schedule": {
+              "mo": true,
+              "we": true
+            },
+            "reminder": false
+        }'
+    curl -X GET localhost:8080/api/meds
 
 
 ## contributing
