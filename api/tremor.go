@@ -2,8 +2,8 @@ package api
 
 import (
 	"encoding/json"
-	"net/http"
 	"log"
+	"net/http"
 )
 
 func getTremors(tremorRepo TremorRepo) func(http.ResponseWriter, *http.Request) {
@@ -24,6 +24,11 @@ func addTremor(tremorRepo TremorRepo) func(http.ResponseWriter, *http.Request) {
 		var tremor Tremor
 		if err := json.NewDecoder(r.Body).Decode(&tremor); err != nil {
 			log.Print("decode error: ", err)
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		if tremor.Resting == nil || tremor.Postural == nil {
+			log.Print("invalid json request")
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}

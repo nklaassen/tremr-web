@@ -22,9 +22,13 @@ func TestAddTremor(t *testing.T) {
 		t.Errorf("Failed to create TremorRepo")
 	}
 
+	intPtr := func(i int) *int {
+		return &i
+	}
+
 	var tremor api.Tremor
-	tremor.Resting = 43
-	tremor.Postural = 67
+	tremor.Resting = intPtr(43)
+	tremor.Postural = intPtr(67)
 	err = tremorRepo.Add(&tremor)
 	if err != nil {
 		t.Errorf("Failed to add tremor")
@@ -49,12 +53,14 @@ func TestAddMedicine(t *testing.T) {
 		t.Errorf("Failed to create MedicineRepo")
 	}
 
+	strPtr := func(str string) *string {
+		return &str
+	}
+
 	var medicine api.Medicine
-	medicine.Name = "testmed"
-	medicine.Dosage = "10 mL"
-	medicine.Schedule.Mo = true
-	medicine.Schedule.We = true
-	medicine.Schedule.Fr = true
+	medicine.Name = strPtr("testmed")
+	medicine.Dosage = strPtr("10 mL")
+	medicine.Schedule = &api.Schedule{Mo: true, We: true, Fr: true}
 	err = medicineRepo.Add(&medicine)
 	if err != nil {
 		t.Errorf("Failed to add medicine")
@@ -79,12 +85,14 @@ func TestAddExercise(t *testing.T) {
 		t.Errorf("Failed to create ExerciseRepo")
 	}
 
+	strPtr := func(str string) *string {
+		return &str
+	}
+
 	var exercise api.Exercise
-	exercise.Name = "test exercise"
-	exercise.Unit = "10 reps"
-	exercise.Schedule.Mo = true
-	exercise.Schedule.We = true
-	exercise.Schedule.Fr = true
+	exercise.Name = strPtr("test exercise")
+	exercise.Unit = strPtr("10 reps")
+	exercise.Schedule = &api.Schedule{Mo: true, We: true, Fr: true}
 	err = exerciseRepo.Add(&exercise)
 	if err != nil {
 		t.Errorf("Failed to add exercise")

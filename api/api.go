@@ -5,10 +5,10 @@ import (
 )
 
 type Tremor struct {
-	Tid       int `json:"tid"`
-	Resting   int `json:"resting"`
-	Postural  int `json:"postural"`
-	Completed bool `json:"completed"`
+	Tid       int    `json:"tid"`
+	Resting   *int   `json:"resting"`
+	Postural  *int   `json:"postural"`
+	Completed bool   `json:"completed"`
 	Date      string `json:"date"`
 }
 
@@ -23,23 +23,23 @@ type Schedule struct {
 }
 
 type Medicine struct {
-	MID int `json:"mid"`
-	Name *string `json:"name"`
-	Dosage *string `json:"dosage"`
+	MID       int     `json:"mid"`
+	Name      *string `json:"name"`
+	Dosage    *string `json:"dosage"`
 	*Schedule `json:"schedule"`
-	Reminder bool `json:"reminder"`
-	StartDate string `json:"startdate"`
-	EndDate *string `json:"enddate"`
+	Reminder  bool    `json:"reminder"`
+	StartDate string  `json:"startdate"`
+	EndDate   *string `json:"enddate"`
 }
 
 type Exercise struct {
-	EID int `json:"eid"`
-	Name *string `json:"name"`
-	Unit *string `json:"unit"`
+	EID       int     `json:"eid"`
+	Name      *string `json:"name"`
+	Unit      *string `json:"unit"`
 	*Schedule `json:"schedule"`
-	Reminder bool `json:"reminder"`
-	StartDate string `json:"startdate"`
-	EndDate *string `json:"enddate"`
+	Reminder  bool    `json:"reminder"`
+	StartDate string  `json:"startdate"`
+	EndDate   *string `json:"enddate"`
 }
 
 type TremorRepo interface {

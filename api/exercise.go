@@ -2,8 +2,8 @@ package api
 
 import (
 	"encoding/json"
-	"net/http"
 	"log"
+	"net/http"
 )
 
 func getExercises(exerciseRepo ExerciseRepo) func(http.ResponseWriter, *http.Request) {
