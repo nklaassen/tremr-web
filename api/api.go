@@ -6,10 +6,10 @@ import (
 )
 
 type Tremor struct {
-	Tid       int    `json:"tid"`
-	Resting   *int   `json:"resting"`
-	Postural  *int   `json:"postural"`
-	Date      *time.Time `json:"date"`
+	Tid      int        `json:"tid"`
+	Resting  *int       `json:"resting"`
+	Postural *int       `json:"postural"`
+	Date     *time.Time `json:"date"`
 }
 
 type Schedule struct {
@@ -27,9 +27,9 @@ type Medicine struct {
 	Name      *string `json:"name"`
 	Dosage    *string `json:"dosage"`
 	*Schedule `json:"schedule"`
-	Reminder  bool    `json:"reminder"`
-	StartDate string  `json:"startdate"`
-	EndDate   *string `json:"enddate"`
+	Reminder  bool       `json:"reminder"`
+	StartDate *time.Time `json:"startdate"`
+	EndDate   *time.Time `json:"enddate"`
 }
 
 type Exercise struct {
@@ -37,9 +37,9 @@ type Exercise struct {
 	Name      *string `json:"name"`
 	Unit      *string `json:"unit"`
 	*Schedule `json:"schedule"`
-	Reminder  bool    `json:"reminder"`
-	StartDate string  `json:"startdate"`
-	EndDate   *string `json:"enddate"`
+	Reminder  bool       `json:"reminder"`
+	StartDate *time.Time `json:"startdate"`
+	EndDate   *time.Time `json:"enddate"`
 }
 
 type TremorRepo interface {

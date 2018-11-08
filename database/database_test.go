@@ -4,8 +4,8 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nklaassen/tremr-web/api"
-	"testing"
 	"math/rand"
+	"testing"
 	"time"
 )
 

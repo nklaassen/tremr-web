@@ -3,6 +3,7 @@ package database
 import (
 	"github.com/jmoiron/sqlx"
 	"github.com/nklaassen/tremr-web/api"
+	"time"
 )
 
 const (
@@ -18,15 +19,17 @@ const (
 		sa BOOL NOT NULL,
 		su BOOL NOT NULL,
 		reminder BOOL NOT NULL,
-		startdate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		startdate DATETIME NOT NULL,
 		enddate DATETIME
 	)`
 	exerciseInsert = `insert into exercises(
 		name,
 		unit,
 		mo,	tu, we, th, fr, sa, su,
-		reminder)
-		values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		reminder,
+		startdate,
+		enddate)
+		values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	exerciseSelect = "select * from exercises"
 )
 
@@ -53,6 +56,10 @@ func NewExerciseRepo(db *sqlx.DB) (api.ExerciseRepo, error) {
 }
 
 func (t *exerciseRepo) Add(exercise *api.Exercise) error {
+	if exercise.StartDate == nil {
+		now := time.Now()
+		exercise.StartDate = &now
+	}
 	_, err := t.add.Exec(exercise.Name,
 		exercise.Unit,
 		exercise.Schedule.Mo,
@@ -62,7 +69,9 @@ func (t *exerciseRepo) Add(exercise *api.Exercise) error {
 		exercise.Schedule.Fr,
 		exercise.Schedule.Sa,
 		exercise.Schedule.Su,
-		exercise.Reminder)
+		exercise.Reminder,
+		exercise.StartDate,
+		exercise.EndDate)
 	return err
 }
 

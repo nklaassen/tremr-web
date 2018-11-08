@@ -3,6 +3,7 @@ package database
 import (
 	"github.com/jmoiron/sqlx"
 	"github.com/nklaassen/tremr-web/api"
+	"time"
 )
 
 const (
@@ -18,15 +19,17 @@ const (
 		sa BOOL NOT NULL,
 		su BOOL NOT NULL,
 		reminder BOOL NOT NULL,
-		startdate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		startdate DATETIME NOT NULL,
 		enddate DATETIME
 	)`
 	medicineInsert = `insert into medicines(
 		name,
 		dosage,
 		mo,	tu, we, th, fr, sa, su,
-		reminder)
-		values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		reminder,
+		startdate,
+		enddate)
+		values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	medicineSelect = "select * from medicines"
 )
 
@@ -53,6 +56,10 @@ func NewMedicineRepo(db *sqlx.DB) (api.MedicineRepo, error) {
 }
 
 func (t *medicineRepo) Add(medicine *api.Medicine) error {
+	if medicine.StartDate == nil {
+		now := time.Now()
+		medicine.StartDate = &now
+	}
 	_, err := t.add.Exec(medicine.Name,
 		medicine.Dosage,
 		medicine.Schedule.Mo,
@@ -62,7 +69,9 @@ func (t *medicineRepo) Add(medicine *api.Medicine) error {
 		medicine.Schedule.Fr,
 		medicine.Schedule.Sa,
 		medicine.Schedule.Su,
-		medicine.Reminder)
+		medicine.Reminder,
+		medicine.StartDate,
+		medicine.EndDate)
 	return err
 }
 
