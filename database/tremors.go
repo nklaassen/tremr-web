@@ -3,7 +3,6 @@ package database
 import (
 	"github.com/jmoiron/sqlx"
 	"github.com/nklaassen/tremr-web/api"
-	"log"
 )
 
 const (
@@ -23,21 +22,21 @@ type tremorRepo struct {
 	getAll *sqlx.Stmt
 }
 
-func NewTremorRepo() api.TremorRepo {
+func NewTremorRepo(db *sqlx.DB) (api.TremorRepo, error) {
 	_, err := db.Exec(tremorsCreate)
 	if err != nil {
-		log.Fatal("Failed to create tremor table", err)
+		return nil, err
 	}
 	t := new(tremorRepo)
 	t.add, err = db.Preparex(tremorInsert)
 	if err != nil {
-		log.Fatal("Failed to create prepared statement", err)
+		return nil, err
 	}
 	t.getAll, err = db.Preparex(tremorSelect)
 	if err != nil {
-		log.Fatal("Failed to create prepared statement", err)
+		return nil, err
 	}
-	return t
+	return t, nil
 }
 
 func (t *tremorRepo) Add(tremor *api.Tremor) (err error) {

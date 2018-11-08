@@ -5,13 +5,25 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/nklaassen/tremr-web/api"
 	"github.com/nklaassen/tremr-web/database"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/jmoiron/sqlx"
 	"log"
 	"net/http"
 	"os"
 )
 
 func main() {
-	apiContext := &api.Context{database.NewTremorRepo()}
+	db, err := sqlx.Open("sqlite3", "db.sqlite3")
+	if err != nil {
+		log.Fatal("Failed to open database: ", err)
+	}
+
+	tremorRepo, err := database.NewTremorRepo(db)
+	if err != nil {
+		log.Fatal("Failed to TremorRepo: ", err)
+	}
+
+	apiContext := &api.Context{tremorRepo}
 	apiserver := api.NewRouter(apiContext)
 
 	fileserver := http.FileServer(http.Dir("www"))
