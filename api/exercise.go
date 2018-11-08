@@ -27,6 +27,11 @@ func addExercise(exerciseRepo ExerciseRepo) func(http.ResponseWriter, *http.Requ
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
+		if exercise.Name == nil || exercise.Unit == nil || exercise.Schedule == nil {
+			log.Print("invalid json request")
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
 		if err := exerciseRepo.Add(&exercise); err != nil {
 			log.Print("database error: ", err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

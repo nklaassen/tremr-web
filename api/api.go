@@ -24,9 +24,9 @@ type Schedule struct {
 
 type Medicine struct {
 	MID int `json:"mid"`
-	Name string `json:"name"`
-	Dosage string `json:"dosage"`
-	Schedule `json:"schedule"`
+	Name *string `json:"name"`
+	Dosage *string `json:"dosage"`
+	*Schedule `json:"schedule"`
 	Reminder bool `json:"reminder"`
 	StartDate string `json:"startdate"`
 	EndDate *string `json:"enddate"`
@@ -34,9 +34,9 @@ type Medicine struct {
 
 type Exercise struct {
 	EID int `json:"eid"`
-	Name string `json:"name"`
-	Unit string `json:"unit"`
-	Schedule `json:"schedule"`
+	Name *string `json:"name"`
+	Unit *string `json:"unit"`
+	*Schedule `json:"schedule"`
 	Reminder bool `json:"reminder"`
 	StartDate string `json:"startdate"`
 	EndDate *string `json:"enddate"`

@@ -27,6 +27,11 @@ func addMedicine(medicineRepo MedicineRepo) func(http.ResponseWriter, *http.Requ
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
+		if medicine.Name == nil || medicine.Dosage == nil || medicine.Schedule == nil {
+			log.Print("invalid json request")
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
 		if err := medicineRepo.Add(&medicine); err != nil {
 			log.Print("database error: ", err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
