@@ -4,7 +4,23 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 )
+
+type Medicine struct {
+	MID       int     `json:"mid"`
+	Name      *string `json:"name"`
+	Dosage    *string `json:"dosage"`
+	*Schedule `json:"schedule"`
+	Reminder  bool       `json:"reminder"`
+	StartDate *time.Time `json:"startdate"`
+	EndDate   *time.Time `json:"enddate"`
+}
+
+type MedicineRepo interface {
+	Add(*Medicine) error
+	GetAll() ([]Medicine, error)
+}
 
 func getMedicines(medicineRepo MedicineRepo) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, h *http.Request) {

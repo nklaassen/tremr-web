@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	db, err := sqlx.Open("sqlite3", "db.sqlite3")
+	db, err := sqlx.Open("sqlite3", "db.sqlite3?_journal_mode=WAL")
 	if err != nil {
 		log.Fatal("Failed to open database: ", err)
 	}

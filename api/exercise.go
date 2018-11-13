@@ -4,7 +4,23 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 )
+
+type Exercise struct {
+	EID       int     `json:"eid"`
+	Name      *string `json:"name"`
+	Unit      *string `json:"unit"`
+	*Schedule `json:"schedule"`
+	Reminder  bool       `json:"reminder"`
+	StartDate *time.Time `json:"startdate"`
+	EndDate   *time.Time `json:"enddate"`
+}
+
+type ExerciseRepo interface {
+	Add(*Exercise) error
+	GetAll() ([]Exercise, error)
+}
 
 func getExercises(exerciseRepo ExerciseRepo) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, h *http.Request) {

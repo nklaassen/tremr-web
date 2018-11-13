@@ -14,7 +14,7 @@ const (
 		date DATETIME NOT NULL
 	)`
 	tremorInsert = "insert into tremors(postural, resting, date) values(?, ?, ?)"
-	tremorSelect = "select * from tremors"
+	tremorSelect = "select * from tremors order by datetime(date)"
 )
 
 type tremorRepo struct {
@@ -51,4 +51,19 @@ func (t *tremorRepo) Add(tremor *api.Tremor) (err error) {
 func (t *tremorRepo) GetAll() (tremors []api.Tremor, err error) {
 	err = t.getAll.Select(&tremors)
 	return
+}
+
+func (t *tremorRepo) GetSince(timestamp time.Time) (tremors []api.Tremor, err error) {
+	tremors, err = t.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	length := len(tremors)
+	i := length - 1
+	for ; i >= 0; i-- {
+		if !timestamp.Before(*tremors[i].Date) {
+			break
+		}
+	}
+	return tremors[i+1:], nil
 }

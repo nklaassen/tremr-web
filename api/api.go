@@ -2,15 +2,7 @@ package api
 
 import (
 	"github.com/gorilla/mux"
-	"time"
 )
-
-type Tremor struct {
-	Tid      int        `json:"tid"`
-	Resting  *int       `json:"resting"`
-	Postural *int       `json:"postural"`
-	Date     *time.Time `json:"date"`
-}
 
 type Schedule struct {
 	Mo bool `json:"mo"`
@@ -22,41 +14,6 @@ type Schedule struct {
 	Su bool `json:"su"`
 }
 
-type Medicine struct {
-	MID       int     `json:"mid"`
-	Name      *string `json:"name"`
-	Dosage    *string `json:"dosage"`
-	*Schedule `json:"schedule"`
-	Reminder  bool       `json:"reminder"`
-	StartDate *time.Time `json:"startdate"`
-	EndDate   *time.Time `json:"enddate"`
-}
-
-type Exercise struct {
-	EID       int     `json:"eid"`
-	Name      *string `json:"name"`
-	Unit      *string `json:"unit"`
-	*Schedule `json:"schedule"`
-	Reminder  bool       `json:"reminder"`
-	StartDate *time.Time `json:"startdate"`
-	EndDate   *time.Time `json:"enddate"`
-}
-
-type TremorRepo interface {
-	Add(*Tremor) error
-	GetAll() ([]Tremor, error)
-}
-
-type MedicineRepo interface {
-	Add(*Medicine) error
-	GetAll() ([]Medicine, error)
-}
-
-type ExerciseRepo interface {
-	Add(*Exercise) error
-	GetAll() ([]Exercise, error)
-}
-
 type Context struct {
 	TremorRepo
 	MedicineRepo
@@ -65,6 +22,8 @@ type Context struct {
 
 func NewRouter(ctx *Context) *mux.Router {
 	router := mux.NewRouter()
+	router.HandleFunc("/api/tremors", getTremorsSince(ctx.TremorRepo)).
+		Queries("since", "{since}").Methods("GET")
 	router.HandleFunc("/api/tremors", getTremors(ctx.TremorRepo)).Methods("GET")
 	router.HandleFunc("/api/tremors", addTremor(ctx.TremorRepo)).Methods("POST")
 	router.HandleFunc("/api/meds", getMedicines(ctx.MedicineRepo)).Methods("GET")

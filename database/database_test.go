@@ -13,10 +13,12 @@ var db *sqlx.DB
 
 func init() {
 	var err error
-	if db, err = sqlx.Open("sqlite3", "test_db.sqlite3"); err != nil {
+	if db, err = sqlx.Open("sqlite3", "test_db.sqlite3?_journal_mode=WAL"); err != nil {
 		panic(err)
 	}
-	_, err = db.Exec("drop table tremors; drop table medicines; drop table exercises")
+	_, err = db.Exec(`drop table if exists tremors;
+		drop table if exists medicines;
+		drop table if exists exercises`)
 	if err != nil {
 		panic(err)
 	}
@@ -28,17 +30,22 @@ func TestAddTremor(t *testing.T) {
 		t.Errorf("Failed to create TremorRepo")
 	}
 
-	var tremor api.Tremor
-	resting := 20 + rand.Intn(60)
-	postural := 20 + rand.Intn(60)
-	tremor.Resting = &resting
-	tremor.Postural = &postural
 	now := time.Now()
-	tremor.Date = &now
+	var tremor api.Tremor
 
-	err = tremorRepo.Add(&tremor)
-	if err != nil {
-		t.Errorf("Failed to add tremor")
+	for i := 0; i < 365; i++ {
+		resting := 20 + rand.Intn(60)
+		postural := 20 + rand.Intn(60)
+		date := now.AddDate(0, 0, -1*i)
+
+		tremor.Resting = &resting
+		tremor.Postural = &postural
+		tremor.Date = &date
+
+		err = tremorRepo.Add(&tremor)
+		if err != nil {
+			t.Errorf("Failed to add tremor")
+		}
 	}
 }
 
@@ -51,6 +58,38 @@ func TestGetAllTremors(t *testing.T) {
 	_, err = tremorRepo.GetAll()
 	if err != nil {
 		t.Errorf("Failed to get tremors")
+	}
+}
+
+func TestGetTremorsSince(t *testing.T) {
+	tremorRepo, err := NewTremorRepo(db)
+	if err != nil {
+		t.Errorf("Failed to create TremorRepo")
+	}
+
+	// get values from the past week
+	date := time.Now().AddDate(0, 0, -6).Truncate(24 * time.Hour)
+	tremors, err := tremorRepo.GetSince(date)
+	if err != nil {
+		t.Errorf("Failed to get tremors")
+	}
+
+	for _, tremor := range tremors {
+		if tremor.Date.Before(date) {
+			t.Errorf("GetSince returned tremor from before test date")
+			t.Errorf("test date: %v, returned date: %v", date, tremor.Date)
+		}
+	}
+
+	// try getting all tremors since a future date
+	date = time.Now().AddDate(0, 0, 1).Truncate(24 * time.Hour)
+	tremors, err = tremorRepo.GetSince(date)
+	if err != nil {
+		t.Errorf("Failed to get tremors")
+	}
+
+	if len(tremors) != 0 {
+		t.Errorf("returned some values from the future")
 	}
 }
 
