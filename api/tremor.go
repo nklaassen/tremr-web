@@ -8,9 +8,9 @@ import (
 )
 
 type Tremor struct {
-	Tid      int       `json:"tid"`
-	Resting  *int      `json:"resting"`
-	Postural *int      `json:"postural"`
+	Tid      int        `json:"tid"`
+	Resting  *int       `json:"resting"`
+	Postural *int       `json:"postural"`
 	Date     *time.Time `json:"date"`
 }
 
@@ -47,7 +47,6 @@ func getTremorsSince(tremorRepo TremorRepo) func(http.ResponseWriter, *http.Requ
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
-		log.Print("timestamp: ", timestamp)
 		tremors, err := tremorRepo.GetSince(timestamp)
 		if err != nil {
 			log.Print(err)

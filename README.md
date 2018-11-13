@@ -32,6 +32,11 @@ If you just want to test the API, try the following:
         }'
     curl -X GET localhost:8080/api/meds
 
+To get a test database with a bunch of dummy data, run
+
+    go test && cp test_db.sqlite3 db.sqlite3
+
+before starting the server. Note that this only works if the tests pass.
 
 ## contributing
 ### front-end
@@ -40,4 +45,7 @@ Static html, css, and js files will be served from the `www` directory, add and 
 ### back-end
 I hope you like Go! After making changes, make sure to re-run `go build` and run the resulting binary from the root directory of this repo (where this README lives).
 
-`go test` is also really useful for testing things, see `database/tremor_test.go` for an example. Note that this command needs to be run from within the package directory you are testing (`cd database; go test`).
+`go test` is also really useful for testing things, see `database/tremor_test.go` for an example.
+
+Note that this command needs to be run from within the package directory you are testing
+eg. (`cd database; go test`).

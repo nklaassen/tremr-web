@@ -5,23 +5,29 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nklaassen/tremr-web/api"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 )
 
 var db *sqlx.DB
 
-func init() {
+func TestMain(m *testing.M) {
 	var err error
 	if db, err = sqlx.Open("sqlite3", "test_db.sqlite3?_journal_mode=WAL"); err != nil {
 		panic(err)
 	}
+
 	_, err = db.Exec(`drop table if exists tremors;
 		drop table if exists medicines;
 		drop table if exists exercises`)
 	if err != nil {
 		panic(err)
 	}
+
+	code := m.Run()
+	db.Close()
+	os.Exit(code)
 }
 
 func TestAddTremor(t *testing.T) {
