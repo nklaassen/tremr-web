@@ -8,6 +8,7 @@ import (
 
 func getTremors(tremorRepo TremorRepo) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, h *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin","*")
 		tremors, err := tremorRepo.GetAll()
 		if err != nil {
 			log.Print(err)
