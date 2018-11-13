@@ -68,6 +68,11 @@ func main() {
 	router.PathPrefix("/").Handler(fileserver).Methods("GET")
 	loggedRouter := handlers.LoggingHandler(os.Stdout, router)
 
-	// Start the server on port 8080, this should never return
-	log.Fatal(http.ListenAndServe(":8080", loggedRouter))
+	portNum := "8080"
+	if len(os.Args) > 1 {
+		portNum = os.Args[1]
+	}
+
+	log.Printf("starting tremr-web on port %v\n", portNum)
+	log.Fatal(http.ListenAndServe(":" + portNum, loggedRouter))
 }
