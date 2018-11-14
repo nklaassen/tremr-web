@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
-	//	"github.com/gorilla/handlers"
 	"encoding/json"
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nklaassen/tremr-web/api"
@@ -18,11 +17,9 @@ import (
 )
 
 var apiContext *api.Context
-var db *sqlx.DB
 
 func TestMain(m *testing.M) {
-	var err error
-	db, err = sqlx.Open("sqlite3", "test_db.sqlite3?_journal_mode=WAL")
+	db, err := sqlx.Open("sqlite3", "test_db.sqlite3?_journal_mode=WAL")
 	if err != nil {
 		panic(err)
 	}
@@ -58,9 +55,7 @@ func TestMain(m *testing.M) {
 
 func serve(request *http.Request) *httptest.ResponseRecorder {
 	apiserver := api.NewRouter(apiContext)
-	//handler := handlers.LoggingHandler(os.Stdout, apiserver)
 	recorder := httptest.NewRecorder()
-	//handler.ServeHTTP(recorder, request)
 	apiserver.ServeHTTP(recorder, request)
 	return recorder
 }
@@ -123,5 +118,107 @@ func TestGetTremorsSince(t *testing.T) {
 			t.Fatal("GET request on", url, "returned tremor with timestamp before",
 				then.Format(time.RFC3339))
 		}
+	}
+}
+
+func TestPostMedicine(t *testing.T) {
+	goodTests := []string{
+		`{"name": "test med 1", "dosage": "10 mL", "schedule": {"mo": true, "we": true}}`,
+		`{"name": "test med 2", "dosage": "20 mL", "schedule": {"mo": false, "tu": true, "th": true},
+			"startdate": "2018-11-01T00:00:00Z"}`,
+		`{"name": "test med 3", "dosage": "20 mL", "schedule": {"mo": false, "tu": true, "th": true},
+			"startdate": "2018-11-01T00:00:00Z", "enddate": "2018-11-12T00:00:00Z"}`,
+		`{"name": "test med 4", "dosage": "30 mL", "schedule": {"sa": true, "su": true},
+			"reminder": true}`}
+	badTests := []string{
+		`{"dosage": "10 mL", "schedule": {"mo": true, "we": true}}`,
+		`{"name": "bad test med 4", "schedule": {"mo": false, "tu": true, "th": true},
+			"startdate": "2018-11-01T00:00:00Z"}`,
+		`{"name": "bad test med 5", "dosage": "20 mL", "startdate": "2018-11-01T00:00:00Z"}`,
+		`{"name": "test exercise 1", "unit": "10 reps", "schedule": {"mo": true, "we": true}}`}
+
+	for _, test := range goodTests {
+		request, err := http.NewRequest("POST", "/api/meds", strings.NewReader(test))
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := serve(request)
+		if response.Code != http.StatusOK {
+			t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusOK)
+		}
+	}
+	for _, test := range badTests {
+		request, err := http.NewRequest("POST", "/api/meds", strings.NewReader(test))
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := serve(request)
+		if response.Code != http.StatusBadRequest {
+			t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusBadRequest)
+		}
+	}
+}
+
+func TestGetMedicines(t *testing.T) {
+	request, err := http.NewRequest("GET", "/api/meds", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response := serve(request)
+
+	if response.Code != http.StatusOK {
+		t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusOK)
+	}
+}
+
+func TestPostExercise(t *testing.T) {
+	goodTests := []string{
+		`{"name": "test exercise 1", "unit": "10 reps", "schedule": {"mo": true, "we": true}}`,
+		`{"name": "test exercise 2", "unit": "20 reps", "schedule": {"mo": false, "tu": true, "th": true},
+			"startdate": "2018-11-01T00:00:00Z"}`,
+		`{"name": "test exercise 3", "unit": "20 reps", "schedule": {"mo": false, "tu": true, "th": true},
+			"startdate": "2018-11-01T00:00:00Z", "enddate": "2018-11-12T00:00:00Z"}`,
+		`{"name": "test exercise 4", "unit": "30 reps", "schedule": {"sa": true, "su": true},
+			"reminder": true}`}
+	badTests := []string{
+		`{"unit": "10 reps", "schedule": {"mo": true, "we": true}}`,
+		`{"name": "bad test exercise 4", "schedule": {"mo": false, "tu": true, "th": true},
+			"startdate": "2018-11-01T00:00:00Z"}`,
+		`{"name": "bad test exercise 5", "unit": "20 reps", "startdate": "2018-11-01T00:00:00Z"}`,
+		`{"name": "test med 1", "dosage": "10 mL", "schedule": {"mo": true, "we": true}}`}
+
+	for _, test := range goodTests {
+		request, err := http.NewRequest("POST", "/api/exercises", strings.NewReader(test))
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := serve(request)
+		if response.Code != http.StatusOK {
+			t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusOK)
+		}
+	}
+	for _, test := range badTests {
+		request, err := http.NewRequest("POST", "/api/exercises", strings.NewReader(test))
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := serve(request)
+		if response.Code != http.StatusBadRequest {
+			t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusBadRequest)
+		}
+	}
+}
+
+func TestGetExercises(t *testing.T) {
+	request, err := http.NewRequest("GET", "/api/exercises", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response := serve(request)
+
+	if response.Code != http.StatusOK {
+		t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusOK)
 	}
 }

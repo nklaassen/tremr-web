@@ -30,7 +30,7 @@ const (
 		startdate,
 		enddate)
 		values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	medicineSelect = "select * from medicines"
+	medicineSelect = "select * from medicines order by datetime(startdate)"
 )
 
 type medicineRepo struct {

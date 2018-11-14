@@ -74,5 +74,5 @@ func main() {
 	}
 
 	log.Printf("starting tremr-web on port %v\n", portNum)
-	log.Fatal(http.ListenAndServe(":" + portNum, loggedRouter))
+	log.Fatal(http.ListenAndServe(":"+portNum, loggedRouter))
 }
