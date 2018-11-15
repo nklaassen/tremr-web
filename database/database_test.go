@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 func TestAddTremor(t *testing.T) {
 	tremorRepo, err := NewTremorRepo(db)
 	if err != nil {
-		t.Errorf("Failed to create TremorRepo")
+		t.Fatal("Failed to create TremorRepo:", err)
 	}
 
 	now := time.Now()

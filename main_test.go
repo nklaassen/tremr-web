@@ -71,13 +71,14 @@ func TestPostTremor(t *testing.T) {
 
 		request, err := http.NewRequest("POST", "/api/tremors", strings.NewReader(tremorJson))
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			continue
 		}
 
 		response := serve(request)
 
 		if response.Code != http.StatusOK {
-			t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusOK)
+			t.Error("Server Error: Returned", response.Code, "instead of", http.StatusOK)
 		}
 	}
 }
@@ -91,7 +92,7 @@ func TestGetAllTremors(t *testing.T) {
 	response := serve(request)
 
 	if response.Code != http.StatusOK {
-		t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusOK)
+		t.Error("Server Error: Returned", response.Code, "instead of", http.StatusOK)
 	}
 }
 
@@ -113,11 +114,30 @@ func TestGetTremorsSince(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&tremors); err != nil {
 		t.Fatal("decode error:", err)
 	}
+	// make sure none of the returned tremors are before the timestamp
 	for _, tremor := range tremors {
 		if tremor.Date.Before(then) {
-			t.Fatal("GET request on", url, "returned tremor with timestamp before",
+			t.Error("GET request on", url, "returned tremor with timestamp before",
 				then.Format(time.RFC3339))
 		}
+	}
+
+	// test getting tremors from the future
+	then = now.AddDate(0, 0, 1)
+	url = "/api/tremors?since=" + then.Format(time.RFC3339)
+	request, err = http.NewRequest("GET", url, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response = serve(request)
+	if response.Code != http.StatusOK {
+		t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusOK)
+	}
+	if err := json.NewDecoder(response.Body).Decode(&tremors); err != nil {
+		t.Fatal("decode error:", err)
+	}
+	if len(tremors) > 0 {
+		t.Error("Returned tremors from the future!", tremors)
 	}
 }
 
@@ -140,21 +160,23 @@ func TestPostMedicine(t *testing.T) {
 	for _, test := range goodTests {
 		request, err := http.NewRequest("POST", "/api/meds", strings.NewReader(test))
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			continue
 		}
 		response := serve(request)
 		if response.Code != http.StatusOK {
-			t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusOK)
+			t.Error("Server Error: Returned", response.Code, "instead of", http.StatusOK)
 		}
 	}
 	for _, test := range badTests {
 		request, err := http.NewRequest("POST", "/api/meds", strings.NewReader(test))
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			continue
 		}
 		response := serve(request)
 		if response.Code != http.StatusBadRequest {
-			t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusBadRequest)
+			t.Error("Server Error: Returned", response.Code, "instead of", http.StatusBadRequest)
 		}
 	}
 }
@@ -168,7 +190,7 @@ func TestGetMedicines(t *testing.T) {
 	response := serve(request)
 
 	if response.Code != http.StatusOK {
-		t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusOK)
+		t.Error("Server Error: Returned", response.Code, "instead of", http.StatusOK)
 	}
 }
 
@@ -191,21 +213,23 @@ func TestPostExercise(t *testing.T) {
 	for _, test := range goodTests {
 		request, err := http.NewRequest("POST", "/api/exercises", strings.NewReader(test))
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			continue
 		}
 		response := serve(request)
 		if response.Code != http.StatusOK {
-			t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusOK)
+			t.Error("Server Error: Returned", response.Code, "instead of", http.StatusOK)
 		}
 	}
 	for _, test := range badTests {
 		request, err := http.NewRequest("POST", "/api/exercises", strings.NewReader(test))
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			continue
 		}
 		response := serve(request)
 		if response.Code != http.StatusBadRequest {
-			t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusBadRequest)
+			t.Error("Server Error: Returned", response.Code, "instead of", http.StatusBadRequest)
 		}
 	}
 }
@@ -219,6 +243,6 @@ func TestGetExercises(t *testing.T) {
 	response := serve(request)
 
 	if response.Code != http.StatusOK {
-		t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusOK)
+		t.Error("Server Error: Returned", response.Code, "instead of", http.StatusOK)
 	}
 }

@@ -14,12 +14,16 @@ const (
 		date DATETIME NOT NULL
 	)`
 	tremorInsert = "insert into tremors(postural, resting, date) values(?, ?, ?)"
-	tremorSelect = "select * from tremors order by datetime(date)"
+	tremorSelectBase = "select * from tremors"
+	orderByDate = " order by datetime(date)"
+	tremorSelectAll = tremorSelectBase + orderByDate
+	tremorSelectSince = tremorSelectBase + " where datetime(date) > datetime(?)" + orderByDate
 )
 
 type tremorRepo struct {
 	add    *sqlx.Stmt
 	getAll *sqlx.Stmt
+	getSince *sqlx.Stmt
 }
 
 func NewTremorRepo(db *sqlx.DB) (api.TremorRepo, error) {
@@ -32,7 +36,11 @@ func NewTremorRepo(db *sqlx.DB) (api.TremorRepo, error) {
 	if err != nil {
 		return nil, err
 	}
-	t.getAll, err = db.Preparex(tremorSelect)
+	t.getAll, err = db.Preparex(tremorSelectAll)
+	if err != nil {
+		return nil, err
+	}
+	t.getSince, err = db.Preparex(tremorSelectSince)
 	if err != nil {
 		return nil, err
 	}
@@ -54,16 +62,6 @@ func (t *tremorRepo) GetAll() (tremors []api.Tremor, err error) {
 }
 
 func (t *tremorRepo) GetSince(timestamp time.Time) (tremors []api.Tremor, err error) {
-	tremors, err = t.GetAll()
-	if err != nil {
-		return nil, err
-	}
-	length := len(tremors)
-	i := length - 1
-	for ; i >= 0; i-- {
-		if !timestamp.Before(*tremors[i].Date) {
-			break
-		}
-	}
-	return tremors[i+1:], nil
+	err = t.getSince.Select(&tremors, timestamp)
+	return
 }
