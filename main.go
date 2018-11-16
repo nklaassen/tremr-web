@@ -64,7 +64,7 @@ func main() {
 
 	// Set up router
 	router := mux.NewRouter()
-	router.PathPrefix("/api").Handler(apiserver).Methods("GET", "POST")
+	router.PathPrefix("/api").Handler(apiserver).Methods("GET", "POST", "PUT")
 	router.PathPrefix("/").Handler(fileserver).Methods("GET")
 	loggedRouter := handlers.LoggingHandler(os.Stdout, router)
 
