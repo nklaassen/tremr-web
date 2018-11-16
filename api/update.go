@@ -1,11 +1,11 @@
 package api
 
 import (
-	"syscall"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"syscall"
 )
 
 func update(w http.ResponseWriter, r *http.Request) {

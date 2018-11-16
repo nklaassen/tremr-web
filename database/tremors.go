@@ -13,16 +13,16 @@ const (
 		resting INTEGER NOT NULL,
 		date DATETIME NOT NULL
 	)`
-	tremorInsert = "insert into tremors(postural, resting, date) values(?, ?, ?)"
-	tremorSelectBase = "select * from tremors"
-	orderByDate = " order by datetime(date)"
-	tremorSelectAll = tremorSelectBase + orderByDate
+	tremorInsert      = "insert into tremors(postural, resting, date) values(?, ?, ?)"
+	tremorSelectBase  = "select * from tremors"
+	orderByDate       = " order by datetime(date)"
+	tremorSelectAll   = tremorSelectBase + orderByDate
 	tremorSelectSince = tremorSelectBase + " where datetime(date) > datetime(?)" + orderByDate
 )
 
 type tremorRepo struct {
-	add    *sqlx.Stmt
-	getAll *sqlx.Stmt
+	add      *sqlx.Stmt
+	getAll   *sqlx.Stmt
 	getSince *sqlx.Stmt
 }
 

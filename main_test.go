@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nklaassen/tremr-web/api"
 	"github.com/nklaassen/tremr-web/database"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -53,11 +55,19 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func serve(request *http.Request) *httptest.ResponseRecorder {
+func request(method, url string, body io.Reader, expect int) (r *httptest.ResponseRecorder, err error) {
+	request, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return
+	}
 	apiserver := api.NewRouter(apiContext)
-	recorder := httptest.NewRecorder()
-	apiserver.ServeHTTP(recorder, request)
-	return recorder
+	r = httptest.NewRecorder()
+	apiserver.ServeHTTP(r, request)
+	if r.Code != expect {
+		err = fmt.Errorf("Server Error: Returned %v instead of %v", r.Code, expect)
+		return
+	}
+	return
 }
 
 func TestPostTremor(t *testing.T) {
@@ -69,30 +79,18 @@ func TestPostTremor(t *testing.T) {
 		tremorJson := fmt.Sprintf(`{"resting": %v, "postural": %v, "date": "%v"}"`,
 			resting, postural, date.Format(time.RFC3339))
 
-		request, err := http.NewRequest("POST", "/api/tremors", strings.NewReader(tremorJson))
+		_, err := request(http.MethodPost, "/api/tremors", strings.NewReader(tremorJson), http.StatusOK)
 		if err != nil {
 			t.Error(err)
 			continue
-		}
-
-		response := serve(request)
-
-		if response.Code != http.StatusOK {
-			t.Error("Server Error: Returned", response.Code, "instead of", http.StatusOK)
 		}
 	}
 }
 
 func TestGetAllTremors(t *testing.T) {
-	request, err := http.NewRequest("GET", "/api/tremors", nil)
+	_, err := request(http.MethodGet, "/api/tremors", nil, http.StatusOK)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	response := serve(request)
-
-	if response.Code != http.StatusOK {
-		t.Error("Server Error: Returned", response.Code, "instead of", http.StatusOK)
 	}
 }
 
@@ -102,13 +100,9 @@ func TestGetTremorsSince(t *testing.T) {
 	// test getting tremors for the past week
 	then := now.AddDate(0, 0, -6)
 	url := "/api/tremors?since=" + then.Format(time.RFC3339)
-	request, err := http.NewRequest("GET", url, nil)
+	response, err := request(http.MethodGet, url, nil, http.StatusOK)
 	if err != nil {
 		t.Fatal(err)
-	}
-	response := serve(request)
-	if response.Code != http.StatusOK {
-		t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusOK)
 	}
 	var tremors []api.Tremor
 	if err := json.NewDecoder(response.Body).Decode(&tremors); err != nil {
@@ -125,13 +119,9 @@ func TestGetTremorsSince(t *testing.T) {
 	// test getting tremors from the future
 	then = now.AddDate(0, 0, 1)
 	url = "/api/tremors?since=" + then.Format(time.RFC3339)
-	request, err = http.NewRequest("GET", url, nil)
+	response, err = request(http.MethodGet, url, nil, http.StatusOK)
 	if err != nil {
 		t.Fatal(err)
-	}
-	response = serve(request)
-	if response.Code != http.StatusOK {
-		t.Fatal("Server Error: Returned", response.Code, "instead of", http.StatusOK)
 	}
 	if err := json.NewDecoder(response.Body).Decode(&tremors); err != nil {
 		t.Fatal("decode error:", err)
@@ -158,39 +148,75 @@ func TestPostMedicine(t *testing.T) {
 		`{"name": "test exercise 1", "unit": "10 reps", "schedule": {"mo": true, "we": true}}`}
 
 	for _, test := range goodTests {
-		request, err := http.NewRequest("POST", "/api/meds", strings.NewReader(test))
+		_, err := request(http.MethodPost, "/api/meds", strings.NewReader(test), http.StatusOK)
 		if err != nil {
 			t.Error(err)
 			continue
-		}
-		response := serve(request)
-		if response.Code != http.StatusOK {
-			t.Error("Server Error: Returned", response.Code, "instead of", http.StatusOK)
 		}
 	}
 	for _, test := range badTests {
-		request, err := http.NewRequest("POST", "/api/meds", strings.NewReader(test))
+		_, err := request(http.MethodPost, "/api/meds", strings.NewReader(test), http.StatusBadRequest)
 		if err != nil {
 			t.Error(err)
 			continue
-		}
-		response := serve(request)
-		if response.Code != http.StatusBadRequest {
-			t.Error("Server Error: Returned", response.Code, "instead of", http.StatusBadRequest)
 		}
 	}
 }
 
 func TestGetMedicines(t *testing.T) {
-	request, err := http.NewRequest("GET", "/api/meds", nil)
+	response, err := request(http.MethodGet, "/api/meds", nil, http.StatusOK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var medicines []api.Medicine
+	if err := json.NewDecoder(response.Body).Decode(&medicines); err != nil {
+		t.Fatal("decode error for returned medicines:", err)
+		return
+	}
+}
+
+func TestGetMedicine(t *testing.T) {
+	response, err := request(http.MethodGet, "/api/meds/1", nil, http.StatusOK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var medicine api.Medicine
+	if err := json.NewDecoder(response.Body).Decode(&medicine); err != nil {
+		t.Fatal("decode error for returned medicine:", err)
+	}
+}
+
+func TestUpdateMedicine(t *testing.T) {
+
+	// get medicine with mid 1
+	response, err := request(http.MethodGet, "/api/meds/1", nil, http.StatusOK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var medicine api.Medicine
+	if err := json.NewDecoder(response.Body).Decode(&medicine); err != nil {
+		t.Fatal("decode error for returned medicine:", err)
+	}
+
+	// update medicine
+	name := "test medicine update"
+	medicine.Name = &name
+	medJson, _ := json.Marshal(medicine)
+	response, err = request(http.MethodPut, "/api/meds", bytes.NewReader(medJson), http.StatusOK)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	response := serve(request)
-
-	if response.Code != http.StatusOK {
-		t.Error("Server Error: Returned", response.Code, "instead of", http.StatusOK)
+	// make sure it actually updated
+	response, err = request(http.MethodGet, "/api/meds/1", nil, http.StatusOK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.NewDecoder(response.Body).Decode(&medicine); err != nil {
+		t.Fatal("decode error for returned medicine:", err)
+	}
+	if *medicine.Name != name {
+		t.Error("failed to update medicine name")
 	}
 }
 
@@ -211,38 +237,68 @@ func TestPostExercise(t *testing.T) {
 		`{"name": "test med 1", "dosage": "10 mL", "schedule": {"mo": true, "we": true}}`}
 
 	for _, test := range goodTests {
-		request, err := http.NewRequest("POST", "/api/exercises", strings.NewReader(test))
+		_, err := request(http.MethodPost, "/api/exercises", strings.NewReader(test), http.StatusOK)
 		if err != nil {
 			t.Error(err)
 			continue
-		}
-		response := serve(request)
-		if response.Code != http.StatusOK {
-			t.Error("Server Error: Returned", response.Code, "instead of", http.StatusOK)
 		}
 	}
 	for _, test := range badTests {
-		request, err := http.NewRequest("POST", "/api/exercises", strings.NewReader(test))
+		_, err := request(http.MethodPost, "/api/exercises", strings.NewReader(test), http.StatusBadRequest)
 		if err != nil {
 			t.Error(err)
 			continue
-		}
-		response := serve(request)
-		if response.Code != http.StatusBadRequest {
-			t.Error("Server Error: Returned", response.Code, "instead of", http.StatusBadRequest)
 		}
 	}
 }
 
 func TestGetExercises(t *testing.T) {
-	request, err := http.NewRequest("GET", "/api/exercises", nil)
+	_, err := request(http.MethodGet, "/api/exercises", nil, http.StatusOK)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetExercise(t *testing.T) {
+	response, err := request(http.MethodGet, "/api/exercises/1", nil, http.StatusOK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exercise api.Exercise
+	if err := json.NewDecoder(response.Body).Decode(&exercise); err != nil {
+		t.Fatal("decode error for returned exercise:", err)
+	}
+}
+
+func TestUpdateExercise(t *testing.T) {
+	// get exercise with eid 1
+	response, err := request(http.MethodGet, "/api/exercises/1", nil, http.StatusOK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exercise api.Exercise
+	if err := json.NewDecoder(response.Body).Decode(&exercise); err != nil {
+		t.Fatal("decode error for returned exercise:", err)
+	}
+
+	// update exercise
+	name := "test exercise update"
+	exercise.Name = &name
+	medJson, _ := json.Marshal(exercise)
+	response, err = request(http.MethodPut, "/api/exercises", bytes.NewReader(medJson), http.StatusOK)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	response := serve(request)
-
-	if response.Code != http.StatusOK {
-		t.Error("Server Error: Returned", response.Code, "instead of", http.StatusOK)
+	// make sure exercise actually got updated
+	response, err = request(http.MethodGet, "/api/exercises/1", nil, http.StatusOK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.NewDecoder(response.Body).Decode(&exercise); err != nil {
+		t.Fatal("decode error for returned exercise:", err)
+	}
+	if *exercise.Name != name {
+		t.Error("failed to update exercise name")
 	}
 }

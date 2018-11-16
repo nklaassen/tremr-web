@@ -1,8 +1,10 @@
 package database
 
 import (
+	"errors"
 	"github.com/jmoiron/sqlx"
 	"github.com/nklaassen/tremr-web/api"
+	"strconv"
 	"time"
 )
 
@@ -20,8 +22,7 @@ const (
 		su BOOL NOT NULL,
 		reminder BOOL NOT NULL,
 		startdate DATETIME NOT NULL,
-		enddate DATETIME
-	)`
+		enddate DATETIME)`
 	exerciseInsert = `insert into exercises(
 		name,
 		unit,
@@ -30,37 +31,64 @@ const (
 		startdate,
 		enddate)
 		values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	exerciseSelect = "select * from exercises"
+	exerciseSelectBase = "select * from exercises"
+	//orderByStartDate   = " order by datetime(startdate)" defined int exercises.go
+	exerciseSelectAll = exerciseSelectBase + orderByStartDate
+	exerciseSelectEid = exerciseSelectBase + " where eid = ?"
+	exerciseUpdate    = `update exercises set
+		name = ?,
+		unit = ?,
+		mo = ?,
+		tu = ?,
+		we = ?,
+		th = ?,
+		fr = ?,
+		sa = ?,
+		su = ?,
+		reminder = ?,
+		startdate = ?,
+		enddate = ?
+		where eid = ?`
 )
 
 type exerciseRepo struct {
 	add    *sqlx.Stmt
 	getAll *sqlx.Stmt
+	get    *sqlx.Stmt
+	update *sqlx.Stmt
 }
 
-func NewExerciseRepo(db *sqlx.DB) (api.ExerciseRepo, error) {
-	_, err := db.Exec(exercisesCreate)
-	if err != nil {
-		return nil, err
+func NewExerciseRepo(db *sqlx.DB) (apiExerciseRepo api.ExerciseRepo, err error) {
+	if _, err = db.Exec(exercisesCreate); err != nil {
+		return
 	}
-	t := new(exerciseRepo)
-	t.add, err = db.Preparex(exerciseInsert)
-	if err != nil {
-		return nil, err
+	m := new(exerciseRepo)
+	if m.add, err = db.Preparex(exerciseInsert); err != nil {
+		return
 	}
-	t.getAll, err = db.Preparex(exerciseSelect)
-	if err != nil {
-		return nil, err
+	if m.getAll, err = db.Preparex(exerciseSelectAll); err != nil {
+		return
 	}
-	return t, nil
+	if m.get, err = db.Preparex(exerciseSelectEid); err != nil {
+		return
+	}
+	if m.update, err = db.Preparex(exerciseUpdate); err != nil {
+		return
+	}
+	apiExerciseRepo = m
+	return
 }
 
-func (t *exerciseRepo) Add(exercise *api.Exercise) error {
+func (e *exerciseRepo) Add(exercise *api.Exercise) error {
 	if exercise.StartDate == nil {
 		now := time.Now()
 		exercise.StartDate = &now
 	}
-	_, err := t.add.Exec(exercise.Name,
+	if exercise.Reminder == nil {
+		f := false
+		exercise.Reminder = &f
+	}
+	_, err := e.add.Exec(exercise.Name,
 		exercise.Unit,
 		exercise.Schedule.Mo,
 		exercise.Schedule.Tu,
@@ -75,7 +103,51 @@ func (t *exerciseRepo) Add(exercise *api.Exercise) error {
 	return err
 }
 
-func (t *exerciseRepo) GetAll() (exercises []api.Exercise, err error) {
-	err = t.getAll.Select(&exercises)
+func (e *exerciseRepo) GetAll() (exercises []api.Exercise, err error) {
+	err = e.getAll.Select(&exercises)
 	return
+}
+
+func (m *exerciseRepo) Get(eid int64) (exercise api.Exercise, err error) {
+	var exercises []api.Exercise
+	if err = m.get.Select(&exercises, eid); err != nil {
+		return
+	}
+	if len(exercises) == 0 {
+		err = errors.New("no exercises with EID " + strconv.FormatInt(eid, 10))
+		return
+	}
+	if len(exercises) > 1 {
+		err = errors.New("multiple exercises with EID " + strconv.FormatInt(eid, 10))
+		return
+	}
+	exercise = exercises[0]
+	return
+}
+
+func (m *exerciseRepo) Update(exercise *api.Exercise) error {
+	result, err := m.update.Exec(exercise.Name,
+		exercise.Unit,
+		exercise.Schedule.Mo,
+		exercise.Schedule.Tu,
+		exercise.Schedule.We,
+		exercise.Schedule.Th,
+		exercise.Schedule.Fr,
+		exercise.Schedule.Sa,
+		exercise.Schedule.Su,
+		exercise.Reminder,
+		exercise.StartDate,
+		exercise.EndDate,
+		exercise.EID)
+	if err != nil {
+		return err
+	}
+	numRows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if numRows != 1 {
+		return errors.New("Updated " + strconv.FormatInt(numRows, 10) + " rows, expected 1 row")
+	}
+	return nil
 }

@@ -50,7 +50,7 @@ func TestAddTremor(t *testing.T) {
 
 		err = tremorRepo.Add(&tremor)
 		if err != nil {
-			t.Errorf("Failed to add tremor")
+			t.Error("Failed to add tremor:", err)
 		}
 	}
 }
@@ -58,31 +58,31 @@ func TestAddTremor(t *testing.T) {
 func TestGetAllTremors(t *testing.T) {
 	tremorRepo, err := NewTremorRepo(db)
 	if err != nil {
-		t.Errorf("Failed to create TremorRepo")
+		t.Error("Failed to create TremorRepo:", err)
 	}
 
 	_, err = tremorRepo.GetAll()
 	if err != nil {
-		t.Errorf("Failed to get tremors")
+		t.Error("Failed to get tremors:", err)
 	}
 }
 
 func TestGetTremorsSince(t *testing.T) {
 	tremorRepo, err := NewTremorRepo(db)
 	if err != nil {
-		t.Errorf("Failed to create TremorRepo")
+		t.Error("Failed to create TremorRepo:", err)
 	}
 
 	// get values from the past week
 	date := time.Now().AddDate(0, 0, -6).Truncate(24 * time.Hour)
 	tremors, err := tremorRepo.GetSince(date)
 	if err != nil {
-		t.Errorf("Failed to get tremors")
+		t.Error("Failed to get tremors:", err)
 	}
 
 	for _, tremor := range tremors {
 		if tremor.Date.Before(date) {
-			t.Errorf("GetSince returned tremor from before test date")
+			t.Error("GetSince returned tremor from before test date")
 			t.Errorf("test date: %v, returned date: %v", date, tremor.Date)
 		}
 	}
@@ -91,18 +91,18 @@ func TestGetTremorsSince(t *testing.T) {
 	date = time.Now().AddDate(0, 0, 1).Truncate(24 * time.Hour)
 	tremors, err = tremorRepo.GetSince(date)
 	if err != nil {
-		t.Errorf("Failed to get tremors")
+		t.Error("Failed to get tremors:", err)
 	}
 
 	if len(tremors) != 0 {
-		t.Errorf("returned some values from the future")
+		t.Error("returned some values from the future")
 	}
 }
 
 func TestAddMedicine(t *testing.T) {
 	medicineRepo, err := NewMedicineRepo(db)
 	if err != nil {
-		t.Errorf("Failed to create MedicineRepo")
+		t.Error("Failed to create MedicineRepo:", err)
 	}
 
 	var medicine api.Medicine
@@ -113,26 +113,63 @@ func TestAddMedicine(t *testing.T) {
 	medicine.Schedule = &api.Schedule{Mo: true, We: true, Fr: true}
 	err = medicineRepo.Add(&medicine)
 	if err != nil {
-		t.Errorf("Failed to add medicine")
+		t.Error("Failed to add medicine:", err)
+	}
+}
+
+func TestUpdateMedicine(t *testing.T) {
+	medicineRepo, err := NewMedicineRepo(db)
+	if err != nil {
+		t.Error("Failed to create MedicineRepo:", err)
+	}
+
+	medicine, err := medicineRepo.Get(1)
+	if err != nil {
+		t.Error("Failed to get medicine:", err)
+	}
+	name := "test medicine 2"
+	medicine.Name = &name
+	err = medicineRepo.Update(&medicine)
+	if err != nil {
+		t.Error("Failed to update medicine:", err)
+	}
+	medicine, err = medicineRepo.Get(1)
+	if err != nil {
+		t.Error("Failed to get medicine:", err)
+	}
+	if *medicine.Name != name {
+		t.Errorf("Update failed: %v", *medicine.Name)
 	}
 }
 
 func TestGetAllMedicines(t *testing.T) {
 	medicineRepo, err := NewMedicineRepo(db)
 	if err != nil {
-		t.Errorf("Failed to create MedicineRepo")
+		t.Error("Failed to create MedicineRepo:", err)
 	}
 
 	_, err = medicineRepo.GetAll()
 	if err != nil {
-		t.Errorf("Failed to get medicines")
+		t.Error("Failed to get medicines:", err)
+	}
+}
+
+func TestGetMedicine(t *testing.T) {
+	medicineRepo, err := NewMedicineRepo(db)
+	if err != nil {
+		t.Error("Failed to create MedicineRepo:", err)
+	}
+
+	_, err = medicineRepo.Get(1)
+	if err != nil {
+		t.Error("Failed to get medicine:", err)
 	}
 }
 
 func TestAddExercise(t *testing.T) {
 	exerciseRepo, err := NewExerciseRepo(db)
 	if err != nil {
-		t.Errorf("Failed to create ExerciseRepo")
+		t.Error("Failed to create ExerciseRepo:", err)
 	}
 
 	var exercise api.Exercise
@@ -143,18 +180,55 @@ func TestAddExercise(t *testing.T) {
 	exercise.Schedule = &api.Schedule{Mo: true, We: true, Fr: true}
 	err = exerciseRepo.Add(&exercise)
 	if err != nil {
-		t.Errorf("Failed to add exercise")
+		t.Error("Failed to add exercise:", err)
+	}
+}
+
+func TestUpdateExercise(t *testing.T) {
+	exerciseRepo, err := NewExerciseRepo(db)
+	if err != nil {
+		t.Error("Failed to create ExerciseRepo:", err)
+	}
+
+	exercise, err := exerciseRepo.Get(1)
+	if err != nil {
+		t.Error("Failed to get exercise:", err)
+	}
+	name := "test exercise update"
+	exercise.Name = &name
+	err = exerciseRepo.Update(&exercise)
+	if err != nil {
+		t.Error("Failed to update exercise:", err)
+	}
+	exercise, err = exerciseRepo.Get(1)
+	if err != nil {
+		t.Error("Failed to get exercise:", err)
+	}
+	if *exercise.Name != name {
+		t.Errorf("Update failed: %v", *exercise.Name)
 	}
 }
 
 func TestGetAllExercises(t *testing.T) {
 	exerciseRepo, err := NewExerciseRepo(db)
 	if err != nil {
-		t.Errorf("Failed to create ExerciseRepo")
+		t.Error("Failed to create ExerciseRepo:", err)
 	}
 
 	_, err = exerciseRepo.GetAll()
 	if err != nil {
-		t.Errorf("Failed to get exercises")
+		t.Error("Failed to get exercises:", err)
+	}
+}
+
+func TestGetExercise(t *testing.T) {
+	exerciseRepo, err := NewExerciseRepo(db)
+	if err != nil {
+		t.Error("Failed to create ExerciseRepo:", err)
+	}
+
+	_, err = exerciseRepo.Get(1)
+	if err != nil {
+		t.Error("Failed to get exercise:", err)
 	}
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type Tremor struct {
-	Tid      int        `json:"tid"`
+	Tid      int64      `json:"tid"`
 	Resting  *int       `json:"resting"`
 	Postural *int       `json:"postural"`
 	Date     *time.Time `json:"date"`
