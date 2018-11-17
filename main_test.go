@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	apiContext = &api.Context{tremorRepo, medicineRepo, exerciseRepo}
+	apiContext = &api.Context{tremorRepo, medicineRepo, exerciseRepo, make(chan struct{})}
 
 	code := m.Run()
 	db.Close()

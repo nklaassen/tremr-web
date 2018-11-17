@@ -19,6 +19,7 @@ type Context struct {
 	TremorRepo
 	MedicineRepo
 	ExerciseRepo
+	Reboot chan struct{}
 }
 
 func NewRouter(ctx *Context) *mux.Router {
@@ -35,6 +36,6 @@ func NewRouter(ctx *Context) *mux.Router {
 	router.HandleFunc("/api/exercises", updateExercise(ctx.ExerciseRepo)).Methods(http.MethodPut)
 	router.HandleFunc("/api/exercises", getExercises(ctx.ExerciseRepo)).Methods(http.MethodGet)
 	router.HandleFunc("/api/exercises", addExercise(ctx.ExerciseRepo)).Methods(http.MethodPost)
-	router.HandleFunc("/api/update", update).Methods(http.MethodPost)
+	router.HandleFunc("/api/update", update(ctx.Reboot)).Methods(http.MethodPost)
 	return router
 }

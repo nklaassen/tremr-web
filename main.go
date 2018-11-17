@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -14,7 +15,7 @@ import (
 	"syscall"
 )
 
-func createApiContext(db *sqlx.DB) *api.Context {
+func createApiContext(db *sqlx.DB, reboot chan struct{}) *api.Context {
 	tremorRepo, err := database.NewTremorRepo(db)
 	if err != nil {
 		log.Fatal("Failed to create TremorRepo: ", err)
@@ -33,12 +34,12 @@ func createApiContext(db *sqlx.DB) *api.Context {
 	return &api.Context{
 		TremorRepo:   tremorRepo,
 		MedicineRepo: medicineRepo,
-		ExerciseRepo: exerciseRepo}
+		ExerciseRepo: exerciseRepo,
+		Reboot:       reboot,
+	}
 }
 
-func main() {
-	c := make(chan os.Signal)
-
+func serve(portNum string, reboot chan struct{}, shutdown chan struct{}) {
 	// Open database
 	db, err := sqlx.Open("sqlite3", "db.sqlite3?_journal_mode=WAL")
 	if err != nil {
@@ -46,17 +47,8 @@ func main() {
 	}
 	defer db.Close()
 
-	// Close the database and exit on SIGINT and SIGTERM
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		log.Print("Caught signal, closing database and exiting")
-		db.Close()
-		os.Exit(1)
-	}()
-
 	// Create API server
-	apiContext := createApiContext(db)
+	apiContext := createApiContext(db, reboot)
 	apiserver := api.NewRouter(apiContext)
 
 	// Create fileserver out of www/ directory
@@ -68,11 +60,59 @@ func main() {
 	router.PathPrefix("/").Handler(fileserver).Methods("GET")
 	loggedRouter := handlers.LoggingHandler(os.Stdout, router)
 
+	// Create server
+	srv := &http.Server{
+		Addr:    ":" + portNum,
+		Handler: loggedRouter,
+	}
+
+	// Start the webserver in a goroutine so we can wait on the shutdown channel
+	go func() {
+		log.Printf("starting tremr-web on port %v\n", portNum)
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Printf("Error starting server: %v", err)
+			close(shutdown)
+		}
+	}()
+	<-shutdown
+	srv.Shutdown(context.Background())
+}
+
+func main() {
+	// Get port num from cmd line arg, default to 8080
 	portNum := "8080"
 	if len(os.Args) > 1 {
 		portNum = os.Args[1]
 	}
 
-	log.Printf("starting tremr-web on port %v\n", portNum)
-	log.Fatal(http.ListenAndServe(":"+portNum, loggedRouter))
+	// if this channel is closed, restart the go binary
+	reboot := make(chan struct{})
+	// close this channel to shutdown the web server
+	shutdown := make(chan struct{})
+
+	// Start a goroutine which shuts down the webserver on a signal,
+	//	or a send to the reboot channel
+	go func() {
+		c := make(chan os.Signal)
+		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+		select {
+		case <-c:
+			log.Print("Caught signal, shutting down server")
+		case <-reboot:
+			log.Print("Shutting down server and restarting go binary")
+		}
+		close(shutdown)
+	}()
+
+	// this blocks until the webserver shuts down
+	serve(portNum, reboot, shutdown)
+
+	// if the reboot channel was closed, execve the (probably updated) go binary (see ./api/update)
+	select {
+	case <-reboot:
+		if err := syscall.Exec(os.Args[0], os.Args, os.Environ()); err != nil {
+			log.Print("Failed to restart server", err)
+		}
+	default:
+	}
 }
