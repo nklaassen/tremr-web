@@ -49,13 +49,16 @@ const (
 		startdate = ?,
 		enddate = ?
 		where mid = ?`
+	medicineSelectForDate = medicineSelectBase +
+		" where datetime(startdate) < datetime(?1) and (enddate is null or datetime(enddate) > datetime(?1))"
 )
 
 type medicineRepo struct {
-	add    *sqlx.Stmt
-	getAll *sqlx.Stmt
-	get    *sqlx.Stmt
-	update *sqlx.Stmt
+	add        *sqlx.Stmt
+	getAll     *sqlx.Stmt
+	get        *sqlx.Stmt
+	getForDate *sqlx.Stmt
+	update     *sqlx.Stmt
 }
 
 func NewMedicineRepo(db *sqlx.DB) (apiMedicineRepo api.MedicineRepo, err error) {
@@ -70,6 +73,9 @@ func NewMedicineRepo(db *sqlx.DB) (apiMedicineRepo api.MedicineRepo, err error) 
 		return
 	}
 	if m.get, err = db.Preparex(medicineSelectMid); err != nil {
+		return
+	}
+	if m.getForDate, err = db.Preparex(medicineSelectForDate); err != nil {
 		return
 	}
 	if m.update, err = db.Preparex(medicineUpdate); err != nil {
@@ -123,6 +129,37 @@ func (m *medicineRepo) Get(mid int64) (medicine api.Medicine, err error) {
 	}
 	medicine = medicines[0]
 	return
+}
+
+// Returns all medicines scheduled for date (startdate < date < enddate and weekday matches)
+func (m *medicineRepo) GetForDate(date time.Time) ([]api.Medicine, error) {
+	var medicines []api.Medicine
+	if err := m.getForDate.Select(&medicines, date); err != nil {
+		return nil, err
+	}
+
+	weekday := date.Weekday()
+	check := func(m api.Medicine) bool {
+		switch weekday {
+		case time.Monday: return m.Schedule.Mo
+		case time.Tuesday: return m.Schedule.Tu
+		case time.Wednesday: return m.Schedule.We
+		case time.Thursday: return m.Schedule.Th
+		case time.Friday: return m.Schedule.Fr
+		case time.Saturday: return m.Schedule.Sa
+		case time.Sunday: return m.Schedule.Su
+		}
+		return false
+	}
+
+	// filter without allocating
+	filtered := medicines[:0]
+	for _, m := range medicines {
+		if check(m) {
+			filtered = append(filtered, m)
+		}
+	}
+	return filtered, nil
 }
 
 func (m *medicineRepo) Update(medicine *api.Medicine) error {

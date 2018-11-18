@@ -23,6 +23,7 @@ type MedicineRepo interface {
 	Add(*Medicine) error
 	GetAll() ([]Medicine, error)
 	Get(int64) (Medicine, error)
+	GetForDate(time.Time) ([]Medicine, error)
 	Update(*Medicine) error
 }
 
@@ -77,6 +78,32 @@ func getMedicine(medicineRepo MedicineRepo) func(http.ResponseWriter, *http.Requ
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(medicine)
+	}
+}
+
+func getMedicinesForDate(medicineRepo MedicineRepo) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		timestring := r.FormValue("date")
+		if timestring == "" {
+			log.Print("invalid query")
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		timestamp, err := time.Parse(time.RFC3339, timestring)
+		if err != nil {
+			log.Print("invalid timestamp")
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+
+		medicines, err := medicineRepo.GetForDate(timestamp)
+		if err != nil {
+			log.Print("database error:", err)
+			http.Error(w, "failed to get medicines from database", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(medicines)
 	}
 }
 
