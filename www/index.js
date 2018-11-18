@@ -72,6 +72,7 @@ function makeGraph(tremors) {
 
 	var scatterChartOptions = {
 		type: 'scatter',
+
 		data: {
 			datasets: [{
 				label: 'resting score',
@@ -85,7 +86,7 @@ function makeGraph(tremors) {
 				pointBorderColor: 'red',
 				backgroundColor: 'red',
 				pointBackgroundColor: 'red',
-			}]
+			}],
 		},
 		options: {
 			scales: {
@@ -151,3 +152,9 @@ function makeGraph(tremors) {
 	}
 
 }
+
+
+
+something
+
+var color = "" + something;
