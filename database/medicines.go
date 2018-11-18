@@ -49,8 +49,9 @@ const (
 		startdate = ?,
 		enddate = ?
 		where mid = ?`
-	medicineSelectForDate = medicineSelectBase +
-		" where datetime(startdate) < datetime(?1) and (enddate is null or datetime(enddate) > datetime(?1))"
+	selectForDate = ` where datetime(startdate) < datetime(?1) and
+		(enddate is null or datetime(enddate) > datetime(?1))`
+	medicineSelectForDate = medicineSelectBase + selectForDate
 )
 
 type medicineRepo struct {

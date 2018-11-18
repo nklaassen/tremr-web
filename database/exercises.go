@@ -32,7 +32,7 @@ const (
 		enddate)
 		values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	exerciseSelectBase = "select * from exercises"
-	//orderByStartDate   = " order by datetime(startdate)" defined int exercises.go
+	//orderByStartDate   = " order by datetime(startdate)" defined in medicines.go
 	exerciseSelectAll = exerciseSelectBase + orderByStartDate
 	exerciseSelectEid = exerciseSelectBase + " where eid = ?"
 	exerciseUpdate    = `update exercises set
@@ -49,12 +49,16 @@ const (
 		startdate = ?,
 		enddate = ?
 		where eid = ?`
+	//selectForDate = ` where datetime(startdate) < datetime(?1) and
+	//	(enddate is null or datetime(enddate) > datetime(?1))` defined in medicines.go
+	exerciseSelectForDate = exerciseSelectBase + selectForDate
 )
 
 type exerciseRepo struct {
 	add    *sqlx.Stmt
 	getAll *sqlx.Stmt
 	get    *sqlx.Stmt
+	getForDate *sqlx.Stmt
 	update *sqlx.Stmt
 }
 
@@ -62,20 +66,23 @@ func NewExerciseRepo(db *sqlx.DB) (apiExerciseRepo api.ExerciseRepo, err error) 
 	if _, err = db.Exec(exercisesCreate); err != nil {
 		return
 	}
-	m := new(exerciseRepo)
-	if m.add, err = db.Preparex(exerciseInsert); err != nil {
+	e := new(exerciseRepo)
+	if e.add, err = db.Preparex(exerciseInsert); err != nil {
 		return
 	}
-	if m.getAll, err = db.Preparex(exerciseSelectAll); err != nil {
+	if e.getAll, err = db.Preparex(exerciseSelectAll); err != nil {
 		return
 	}
-	if m.get, err = db.Preparex(exerciseSelectEid); err != nil {
+	if e.get, err = db.Preparex(exerciseSelectEid); err != nil {
 		return
 	}
-	if m.update, err = db.Preparex(exerciseUpdate); err != nil {
+	if e.getForDate, err = db.Preparex(exerciseSelectForDate); err != nil {
 		return
 	}
-	apiExerciseRepo = m
+	if e.update, err = db.Preparex(exerciseUpdate); err != nil {
+		return
+	}
+	apiExerciseRepo = e
 	return
 }
 
@@ -108,9 +115,9 @@ func (e *exerciseRepo) GetAll() (exercises []api.Exercise, err error) {
 	return
 }
 
-func (m *exerciseRepo) Get(eid int64) (exercise api.Exercise, err error) {
+func (e *exerciseRepo) Get(eid int64) (exercise api.Exercise, err error) {
 	var exercises []api.Exercise
-	if err = m.get.Select(&exercises, eid); err != nil {
+	if err = e.get.Select(&exercises, eid); err != nil {
 		return
 	}
 	if len(exercises) == 0 {
@@ -125,8 +132,39 @@ func (m *exerciseRepo) Get(eid int64) (exercise api.Exercise, err error) {
 	return
 }
 
-func (m *exerciseRepo) Update(exercise *api.Exercise) error {
-	result, err := m.update.Exec(exercise.Name,
+// Returns all exercises scheduled for date (startdate < date < enddate and weekday matches)
+func (e *exerciseRepo) GetForDate(date time.Time) ([]api.Exercise, error) {
+	var exercises []api.Exercise
+	if err := e.getForDate.Select(&exercises, date); err != nil {
+		return nil, err
+	}
+
+	weekday := date.Weekday()
+	check := func(e api.Exercise) bool {
+		switch weekday {
+		case time.Monday: return e.Schedule.Mo
+		case time.Tuesday: return e.Schedule.Tu
+		case time.Wednesday: return e.Schedule.We
+		case time.Thursday: return e.Schedule.Th
+		case time.Friday: return e.Schedule.Fr
+		case time.Saturday: return e.Schedule.Sa
+		case time.Sunday: return e.Schedule.Su
+		}
+		return false
+	}
+
+	// filter without allocating
+	filtered := exercises[:0]
+	for _, e := range exercises {
+		if check(e) {
+			filtered = append(filtered, e)
+		}
+	}
+	return filtered, nil
+}
+
+func (e *exerciseRepo) Update(exercise *api.Exercise) error {
+	result, err := e.update.Exec(exercise.Name,
 		exercise.Unit,
 		exercise.Schedule.Mo,
 		exercise.Schedule.Tu,

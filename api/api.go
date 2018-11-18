@@ -35,6 +35,8 @@ func NewRouter(ctx *Context) *mux.Router {
 	router.HandleFunc("/api/meds", getMedicines(ctx.MedicineRepo)).Methods(http.MethodGet)
 	router.HandleFunc("/api/meds", addMedicine(ctx.MedicineRepo)).Methods(http.MethodPost)
 	router.HandleFunc("/api/exercises/{eid}", getExercise(ctx.ExerciseRepo)).Methods(http.MethodGet)
+	router.HandleFunc("/api/exercises", getExercisesForDate(ctx.ExerciseRepo)).
+		Queries("date", "{date}").Methods(http.MethodGet)
 	router.HandleFunc("/api/exercises", updateExercise(ctx.ExerciseRepo)).Methods(http.MethodPut)
 	router.HandleFunc("/api/exercises", getExercises(ctx.ExerciseRepo)).Methods(http.MethodGet)
 	router.HandleFunc("/api/exercises", addExercise(ctx.ExerciseRepo)).Methods(http.MethodPost)

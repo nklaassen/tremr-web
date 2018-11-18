@@ -23,6 +23,7 @@ type ExerciseRepo interface {
 	Add(*Exercise) error
 	GetAll() ([]Exercise, error)
 	Get(int64) (Exercise, error)
+	GetForDate(time.Time) ([]Exercise, error)
 	Update(*Exercise) error
 }
 
@@ -79,6 +80,33 @@ func getExercise(exerciseRepo ExerciseRepo) func(http.ResponseWriter, *http.Requ
 		json.NewEncoder(w).Encode(exercise)
 	}
 }
+
+func getExercisesForDate(exerciseRepo ExerciseRepo) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		timestring := r.FormValue("date")
+		if timestring == "" {
+			log.Print("invalid query")
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		timestamp, err := time.Parse(time.RFC3339, timestring)
+		if err != nil {
+			log.Print("invalid timestamp")
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+
+		exercises, err := exerciseRepo.GetForDate(timestamp)
+		if err != nil {
+			log.Print("database error:", err)
+			http.Error(w, "failed to get exercises from database", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(exercises)
+	}
+}
+
 
 func updateExercise(exerciseRepo ExerciseRepo) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
