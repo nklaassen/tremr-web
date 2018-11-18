@@ -1,9 +1,28 @@
 <html>
+<head>
+  <link rel="stylesheet" href="style.css">
+</head>
+
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.3/Chart.bundle.js"></script>
 <script src="./index.js"></script>
 <body onload="loadCanvas()">
+<div class="navbar">
+<a href="About.html" target="_self">About</a>
+<a href="Contact.html" target="_self">Contact</a>
+</div>
+
+<div class="main">
+  <p>Some text some text some text some text..</p>
+</div>
 <h1 align="center">Average Severity Score
 </h1>
+
+
+<button onclick="WeekFunction()">Week</button>
+<button onclick="MonthFunction()">Month</button>
+<button onclick="YearFunction()">Year</button>
+
+
 <canvas id="myChart" width="400" height="400"></canvas>
 <!-- <table bgcolor = "#666362" width = "100%">
          <tr>
@@ -14,12 +33,7 @@
             
          </tr>
       </table> -->
-<p></p>
-<button onclick="WeekFunction()">Week</button>
-<p></p>
-<button onclick="MonthFunction()">Month</button>
-<p></p>
-<button onclick="YearFunction()">Year</button>
+
 
 
 

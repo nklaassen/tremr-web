@@ -100,6 +100,7 @@ function makeGraph(tremors, medicines, exercises) {
 
 	var scatterChartOptions = {
 		type: 'scatter',
+
 		data: {
 			datasets: [{
 				label: 'resting score',
@@ -114,7 +115,7 @@ function makeGraph(tremors, medicines, exercises) {
 				pointBorderColor: 'red',
 				backgroundColor: 'red',
 				pointBackgroundColor: 'red',
-			}]
+			}],
 		},
 		options: {
 			scales: {
