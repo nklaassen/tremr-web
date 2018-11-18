@@ -1,9 +1,12 @@
 //  Name of file: index.js
-//  Programmers: Colin Chan and Devansh Chopra
+//  Programmers: Colin Chan and Devansh Chopra and Nic Klaassen
 //  Team Name: Co.DEsign
 //  Changes been made:
 //          2018-11-17: created file
 // Known Bugs:
+
+var MAX_COLOURS = 50;
+var colourIndex = 0;
 
 function getTremors(since) {
 	return fetch("/api/tremors?since=" + since).then(
@@ -91,10 +94,20 @@ function getRandomColor() {
 	return color;
 }
 
-function loadCanvas() {
-	WeekFunction()
+var colours = [];
+function fillRandomColor() {
+	var i = 0;
+	while (i < 50) {
+		colours.push("" + getRandomColor());
+		i++;
+	}
 }
 
+function loadCanvas() {
+	fillRandomColor()
+	console.log(colours)
+	WeekFunction()
+}
 function makeGraph(tremors, medicines, exercises) {
 	var ctx = document.getElementById("myChart").getContext('2d');
 
@@ -164,8 +177,8 @@ function makeGraph(tremors, medicines, exercises) {
 	scatterChartOptions.data.datasets[1].data = postural
 	
 	var y_value = 0.15;
-	var offset = 0.15;
-
+	var offset = 0.2;
+	colourIndex = 0;
 	medicines.forEach(medicine => {
 		// if medicine.enddate is not set, treat it as today's date
 		var enddate = new Date();
@@ -181,17 +194,19 @@ function makeGraph(tremors, medicines, exercises) {
 			x: enddate,
 			y: y_value
 		}]
-		var color = getRandomColor();
 		scatterChartOptions.data.datasets.push({
 			label: medicine.name,
 			fill: false,
 			showLine: true, // disable for a single dataset
-            borderColor: "" + color,
+            borderColor: "" + colours[colourIndex],
 			data: medicineData,
 			pointRadius: 0,
 			borderWidth: 15,
 		});
 		y_value += offset;
+		y_value += offset;
+		if (colourIndex+1 <= MAX_COLOURS)
+			colourIndex += 1;
 	})
 	exercises.forEach(exercise => {
 		// if exercise.enddate is not set, treat it as today's date
@@ -208,18 +223,18 @@ function makeGraph(tremors, medicines, exercises) {
 			x: enddate,
 			y: y_value
 		}]
-		var color = getRandomColor();
 		scatterChartOptions.data.datasets.push({
 			label: exercise.name,
 			fill: false,
 			showLine: true, // disable for a single dataset
-            borderColor: "" + color,
+            borderColor: "" + colours[colourIndex],
 			data: exerciseData,
 			pointRadius: 0,
 			borderWidth: 15,
-			steppedLine: true,
 		});
 		y_value += offset;
+		if (colourIndex+1 <= MAX_COLOURS)
+			colourIndex += 1
 	})
 
 	var scatterChart = new Chart(ctx, scatterChartOptions);
