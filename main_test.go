@@ -70,11 +70,36 @@ func request(method, url string, body io.Reader, expect int) (r *httptest.Respon
 	return
 }
 
+func fractal(a []int) {
+	if len(a) <= 2 {
+		return
+	}
+	mid := len(a) / 2
+	a[mid] = (a[0] + a[len(a)-1]) / 2
+	spread := len(a) / 10
+	if spread < 10 {
+		spread = 10
+	}
+	a[mid] += rand.Intn(spread) - spread/2
+	if a[mid] > 100 {
+		a[mid] = 200 - a[mid]
+	}
+	if a[mid] < 0 {
+		a[mid] = -1 * a[mid]
+	}
+	fractal(a[:mid+1])
+	fractal(a[mid:])
+}
+
 func TestPostTremor(t *testing.T) {
+	vals := [750]int{}
+	vals[0] = 20
+	vals[749] = 80
+	fractal(vals[:])
 	now := time.Now()
 	for i := 0; i < 365; i++ {
-		resting := 20 + rand.Intn(60)
-		postural := 20 + rand.Intn(60)
+		resting := vals[i]
+		postural := vals[365+i]
 		date := now.AddDate(0, 0, -1*i)
 		tremorJson := fmt.Sprintf(`{"resting": %v, "postural": %v, "date": "%v"}"`,
 			resting, postural, date.Format(time.RFC3339))
