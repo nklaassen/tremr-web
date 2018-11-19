@@ -158,13 +158,13 @@ func TestGetTremorsSince(t *testing.T) {
 
 func TestPostMedicine(t *testing.T) {
 	goodTests := []string{
-		`{"name": "test med 1", "dosage": "10 mL", "schedule": {"mo": true, "we": true}}`,
+		`{"name": "test med 1", "dosage": "20 mL", "schedule": {"mo": false, "tu": true, "th": true},
+			"startdate": "2018-11-15T00:00:00Z"}`,
 		`{"name": "test med 2", "dosage": "20 mL", "schedule": {"mo": false, "tu": true, "th": true},
-			"startdate": "2018-11-01T00:00:00Z"}`,
+			"startdate": "2018-08-01T00:00:00Z", "enddate": "2018-11-17T00:00:00Z"}`,
 		`{"name": "test med 3", "dosage": "20 mL", "schedule": {"mo": false, "tu": true, "th": true},
-			"startdate": "2018-11-01T00:00:00Z", "enddate": "2018-11-12T00:00:00Z"}`,
-		`{"name": "test med 4", "dosage": "30 mL", "schedule": {"sa": true, "su": true},
-			"reminder": true}`}
+			"startdate": "2018-01-01T00:00:00Z", "enddate": "2018-09-01T00:00:00Z"}`,
+		}
 	badTests := []string{
 		`{"dosage": "10 mL", "schedule": {"mo": true, "we": true}}`,
 		`{"name": "bad test med 4", "schedule": {"mo": false, "tu": true, "th": true},
@@ -214,7 +214,7 @@ func TestGetMedicine(t *testing.T) {
 func TestUpdateMedicine(t *testing.T) {
 
 	// get medicine with mid 1
-	response, err := request(http.MethodGet, "/api/meds/1", nil, http.StatusOK)
+	response, err := request(http.MethodGet, "/api/meds/3", nil, http.StatusOK)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +224,7 @@ func TestUpdateMedicine(t *testing.T) {
 	}
 
 	// update medicine
-	name := "test medicine update"
+	name := "updated medicine"
 	medicine.Name = &name
 	medJson, _ := json.Marshal(medicine)
 	response, err = request(http.MethodPut, "/api/meds", bytes.NewReader(medJson), http.StatusOK)
@@ -247,13 +247,13 @@ func TestUpdateMedicine(t *testing.T) {
 
 func TestPostExercise(t *testing.T) {
 	goodTests := []string{
-		`{"name": "test exercise 1", "unit": "10 reps", "schedule": {"mo": true, "we": true}}`,
-		`{"name": "test exercise 2", "unit": "20 reps", "schedule": {"mo": false, "tu": true, "th": true},
-			"startdate": "2018-11-01T00:00:00Z"}`,
-		`{"name": "test exercise 3", "unit": "20 reps", "schedule": {"mo": false, "tu": true, "th": true},
-			"startdate": "2018-11-01T00:00:00Z", "enddate": "2018-11-12T00:00:00Z"}`,
-		`{"name": "test exercise 4", "unit": "30 reps", "schedule": {"sa": true, "su": true},
-			"reminder": true}`}
+		`{"name": "test exercise 1", "unit": "20 reps", "schedule": {"mo": true, "we": true, "fr": true},
+			"startdate": "2018-11-14T00:00:00Z"}`,
+		`{"name": "test exercise 2", "unit": "15 minutes", "schedule": {"tu": true, "th": true, "sa": true},
+			"startdate": "2018-03-14T00:00:00Z", "enddate": "2018-11-16T00:00:00Z"}`,
+		`{"name": "test exercise 3", "unit": "2 miles", "schedule": {"su": true},
+			"startdate": "2017-12-03T00:00:00Z", "enddate": "2018-06-22T00:00:00Z"}`,
+		}
 	badTests := []string{
 		`{"unit": "10 reps", "schedule": {"mo": true, "we": true}}`,
 		`{"name": "bad test exercise 4", "schedule": {"mo": false, "tu": true, "th": true},
@@ -307,7 +307,7 @@ func TestUpdateExercise(t *testing.T) {
 	}
 
 	// update exercise
-	name := "test exercise update"
+	name := "updated exercise"
 	exercise.Name = &name
 	medJson, _ := json.Marshal(exercise)
 	response, err = request(http.MethodPut, "/api/exercises", bytes.NewReader(medJson), http.StatusOK)

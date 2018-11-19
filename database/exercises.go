@@ -32,7 +32,7 @@ const (
 		enddate)
 		values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	exerciseSelectBase = "select * from exercises"
-	//orderByStartDate   = " order by datetime(startdate)" defined in medicines.go
+	//orderByStartDate   = " order by datetime(startdate) desc" defined in medicines.go
 	exerciseSelectAll = exerciseSelectBase + orderByStartDate
 	exerciseSelectEid = exerciseSelectBase + " where eid = ?"
 	exerciseUpdate    = `update exercises set

@@ -167,7 +167,7 @@ function makeChart(data) {
 	scatterChartOptions.data.datasets[1].data = postural
 	
 	var y_value = 0.15;
-	var offset = 0.2;
+	var offset = 0.3;
 	colourIndex = 0;
 	data.medicines.forEach(medicine => {
 		// if medicine.enddate is not set, treat it as today's date
@@ -193,7 +193,6 @@ function makeChart(data) {
 			pointRadius: 0,
 			borderWidth: 15,
 		});
-		y_value += offset;
 		y_value += offset;
 		if (colourIndex+1 <= MAX_COLOURS)
 			colourIndex += 1;

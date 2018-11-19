@@ -32,7 +32,7 @@ const (
 		enddate)
 		values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	medicineSelectBase = "select * from medicines"
-	orderByStartDate   = " order by datetime(startdate)"
+	orderByStartDate   = " order by datetime(startdate) desc"
 	medicineSelectAll  = medicineSelectBase + orderByStartDate
 	medicineSelectMid  = medicineSelectBase + " where mid = ?"
 	medicineUpdate     = `update medicines set
