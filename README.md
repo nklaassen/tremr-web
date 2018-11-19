@@ -1,5 +1,7 @@
 # tremr-web
-Front-end and back-end code for the web interface of the Tremr app developed for CMPT 275
+Front-end and back-end code for the web interface of the Tremr app developed for CMPT 275.
+
+Currently (2018-11-19), the master branch is hosted publicly at http://ec2-34-209-34-34.us-west-2.compute.amazonaws.com/
 
 ## building and running locally
 You probably don't want to clone this repo manually, instead:
