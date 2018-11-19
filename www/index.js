@@ -7,9 +7,45 @@
 
 var MAX_COLOURS = 50;
 var colourIndex = 0;
+var global_chart = null
 
-function getTremors(since) {
-	return fetch("/api/tremors?since=" + since).then(
+function loadCanvas() {
+	fillRandomColor()
+	loadData().then(data => {
+		makeChart(data)
+		WeekFunction()
+	})
+}
+
+function WeekFunction() {
+	let oneWeekAgo = new Date();
+	oneWeekAgo.setDate(oneWeekAgo.getDate() - 6);
+	oneWeekAgo.setHours(0, 0, 0, 0);
+
+	global_chart.options.scales.xAxes[0].time.min = oneWeekAgo
+	global_chart.update()
+}
+
+function MonthFunction() {
+	let oneMonthAgo = new Date();
+	oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+	oneMonthAgo.setHours(0, 0, 0, 0);
+
+	global_chart.options.scales.xAxes[0].time.min = oneMonthAgo
+	global_chart.update()
+}
+
+function YearFunction() {
+	let oneYearAgo = new Date();
+	oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+	oneYearAgo.setHours(0, 0, 0, 0);
+
+	global_chart.options.scales.xAxes[0].time.min = oneYearAgo
+	global_chart.update()
+}
+
+function getTremors() {
+	return fetch("/api/tremors").then(
 		response => response.json()
 	)
 }
@@ -26,122 +62,79 @@ function getExercises() {
 	)
 }
 
-function WeekFunction() {
-	var oneWeekAgo = new Date();
-	oneWeekAgo.setDate(oneWeekAgo.getDate() - 6);
-	oneWeekAgo.setHours(0, 0, 0, 0);
-	console.log(oneWeekAgo);
-
-	//document.getElementsByTagName("BODY")[0].style.backgroundColor = "yellow";
-	
-	getTremors(oneWeekAgo.toISOString()).then(tremors => {
-		getMedicines().then(medicines => {
-			getExercises().then(exercises => {
-				console.log("got exercises")
-				makeGraph(tremors, medicines, exercises)
-			})
-		})
-	})
+function Data(tremors, medicines, exercises) {
+	this.tremors = tremors
+	this.medicines = medicines
+	this.exercises = exercises
 }
 
-function MonthFunction() {
+async function loadData() {
+	// load all data in parallel
+	tremorPromise = getTremors()
+	medicinePromise = getMedicines()
+	exercisePromise = getExercises()
 
-	var oneMonthAgo = new Date();
-	oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
-	oneMonthAgo.setHours(0, 0, 0, 0);
-	console.log(oneMonthAgo);
+	tremors = await tremorPromise.catch(err => console.log("failed to get tremors", err))
+	medicines = await medicinePromise.catch(err => console.log("failed to get medicines", err))
+	exercises = await exercisePromise.catch(err => console.log("failed to get exercises", err))
 
-	getTremors(oneMonthAgo.toISOString()).then(tremors => {
-		getMedicines().then(medicines => {
-			getExercises().then(exercises => {
-				makeGraph(tremors, medicines, exercises)
-			})
-		})
-	})
-	//document.getElementsByTagName("BODY")[0].style.backgroundColor = "yellow";
-}
-
-function YearFunction() {
-	var oneYearAgo = new Date();
-	oneYearAgo.setDate(oneYearAgo.getDate() - 365);
-	oneYearAgo.setHours(0, 0, 0, 0);
-	console.log(oneYearAgo);
-
-	//var week = "2018-11-08T17:13:39Z"
-	getTremors(oneYearAgo.toISOString()).then(tremors => {
-		getMedicines().then(medicines => {
-			getExercises().then(exercises => {
-				makeGraph(tremors, medicines, exercises)
-			})
-		})
-	})
-	//document.getElementsByTagName("BODY")[0].style.backgroundColor = "yellow";
-}
-
-function f() {
-	var date = new Date();
-	var lastweek = new Date() - 1;
-	var lastmonth = new Date(date.getFullYear(), date.getMonth(), 0);
-	alert(firstDay + "===" + lastDay);
+	return new Data(tremors, medicines, exercises)
 }
 
 function getRandomColor() {
-	var letters = '0123456789ABCDE';
-	var color = '#';
-	for (var i = 0; i < 6; i++) {
-	  color += letters[Math.floor(Math.random() * 15)];
+	const letters = '0123456789ABCDE';
+	let color = '#';
+	for (let i = 0; i < 6; i++) {
+		color += letters[Math.floor(Math.random() * 15)];
 	}
 	return color;
 }
 
 var colours = [];
 function fillRandomColor() {
-	var i = 0;
+	let i = 0;
 	while (i < 50) {
 		colours.push("" + getRandomColor());
 		i++;
 	}
 }
 
-function loadCanvas() {
-	fillRandomColor()
-	console.log(colours)
-	WeekFunction()
-}
-function makeGraph(tremors, medicines, exercises) {
-	var ctx = document.getElementById("myChart").getContext('2d');
-
-	var scatterChartOptions = {
+function makeChart(data) {
+	let scatterChartOptions = {
 		type: 'scatter',
-
 		data: {
 			datasets: [{
 				label: 'resting score',
 				fill: false,
-				showLine: false, // disable for a single dataset
+				showLine: true,
+				borderColor: '#00f5',
 				pointBorderColor: 'blue',
 				backgroundColor: 'blue',
 				pointBackgroundColor: 'blue',
 			}, {
 				label: 'postural score',
-				showLine: false, // disable for a single dataset
+				fill: false,
+				showLine: true,
+				borderColor: '#f005',
 				pointBorderColor: 'red',
 				backgroundColor: 'red',
 				pointBackgroundColor: 'red',
 			}],
 		},
 		options: {
+			maintainAspectRatio: false,
 			scales: {
 				xAxes: [{
-					display: true,
+					type: 'time',
 					scaleLabel: {
 						display: true,
 						labelString: 'Time'
 					},
-
-					labelString: 'Time',
-					type: 'time',
-					position: 'bottom'
+					time: {
+						displayFormats: {
+							hour: 'ddd, hA'
+						}
+					}
 				}],
 				yAxes: [{
 					scaleLabel: {
@@ -149,8 +142,6 @@ function makeGraph(tremors, medicines, exercises) {
 						labelString: 'Severity Score'
 					},
 					ticks: {
-						//suggestedMin: 0, // minimum will be 0, unless there is a lower value.
-						// OR //
 						beginAtZero: true, // minimum value will be 0.
 						max: 10
 					}
@@ -160,26 +151,25 @@ function makeGraph(tremors, medicines, exercises) {
 		}
 	};
 
-	resting = tremors.map(tremor => {
+	resting = data.tremors.map(tremor => {
 		return {
 			x: tremor.date,
 			y: tremor.resting / 10
 		}
 	})
-	postural = tremors.map(tremor => {
+	postural = data.tremors.map(tremor => {
 		return {
 			x: tremor.date,
 			y: tremor.postural / 10
 		}
 	})
-	
 	scatterChartOptions.data.datasets[0].data = resting
 	scatterChartOptions.data.datasets[1].data = postural
 	
 	var y_value = 0.15;
 	var offset = 0.2;
 	colourIndex = 0;
-	medicines.forEach(medicine => {
+	data.medicines.forEach(medicine => {
 		// if medicine.enddate is not set, treat it as today's date
 		var enddate = new Date();
 		enddate = enddate.toISOString()
@@ -198,7 +188,7 @@ function makeGraph(tremors, medicines, exercises) {
 			label: medicine.name,
 			fill: false,
 			showLine: true, // disable for a single dataset
-            borderColor: "" + colours[colourIndex],
+			borderColor: "" + colours[colourIndex],
 			data: medicineData,
 			pointRadius: 0,
 			borderWidth: 15,
@@ -208,7 +198,7 @@ function makeGraph(tremors, medicines, exercises) {
 		if (colourIndex+1 <= MAX_COLOURS)
 			colourIndex += 1;
 	})
-	exercises.forEach(exercise => {
+	data.exercises.forEach(exercise => {
 		// if exercise.enddate is not set, treat it as today's date
 		var enddate = new Date();
 		enddate = enddate.toISOString()
@@ -227,7 +217,7 @@ function makeGraph(tremors, medicines, exercises) {
 			label: exercise.name,
 			fill: false,
 			showLine: true, // disable for a single dataset
-            borderColor: "" + colours[colourIndex],
+			borderColor: "" + colours[colourIndex],
 			data: exerciseData,
 			pointRadius: 0,
 			borderWidth: 15,
@@ -237,12 +227,6 @@ function makeGraph(tremors, medicines, exercises) {
 			colourIndex += 1
 	})
 
-	var scatterChart = new Chart(ctx, scatterChartOptions);
-
-	// debug print
-	for (var i = 0; i < scatterChart.data.datasets.length; i++) {
-		for (var j = 0; j < scatterChart.data.datasets[i].data.length; j++) {
-			console.log("data arr ", scatterChart.data.datasets[i].data[j])
-		}
-	}
+	let ctx = document.getElementById("myChart").getContext('2d');
+	global_chart = new Chart(ctx, scatterChartOptions);
 }
