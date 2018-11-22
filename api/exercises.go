@@ -107,7 +107,6 @@ func getExercisesForDate(exerciseRepo ExerciseRepo) func(http.ResponseWriter, *h
 	}
 }
 
-
 func updateExercise(exerciseRepo ExerciseRepo) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var exercise Exercise

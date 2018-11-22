@@ -55,11 +55,11 @@ const (
 )
 
 type exerciseRepo struct {
-	add    *sqlx.Stmt
-	getAll *sqlx.Stmt
-	get    *sqlx.Stmt
+	add        *sqlx.Stmt
+	getAll     *sqlx.Stmt
+	get        *sqlx.Stmt
 	getForDate *sqlx.Stmt
-	update *sqlx.Stmt
+	update     *sqlx.Stmt
 }
 
 func NewExerciseRepo(db *sqlx.DB) (apiExerciseRepo api.ExerciseRepo, err error) {
@@ -142,13 +142,20 @@ func (e *exerciseRepo) GetForDate(date time.Time) ([]api.Exercise, error) {
 	weekday := date.Weekday()
 	check := func(e api.Exercise) bool {
 		switch weekday {
-		case time.Monday: return e.Schedule.Mo
-		case time.Tuesday: return e.Schedule.Tu
-		case time.Wednesday: return e.Schedule.We
-		case time.Thursday: return e.Schedule.Th
-		case time.Friday: return e.Schedule.Fr
-		case time.Saturday: return e.Schedule.Sa
-		case time.Sunday: return e.Schedule.Su
+		case time.Monday:
+			return e.Schedule.Mo
+		case time.Tuesday:
+			return e.Schedule.Tu
+		case time.Wednesday:
+			return e.Schedule.We
+		case time.Thursday:
+			return e.Schedule.Th
+		case time.Friday:
+			return e.Schedule.Fr
+		case time.Saturday:
+			return e.Schedule.Sa
+		case time.Sunday:
+			return e.Schedule.Su
 		}
 		return false
 	}

@@ -142,13 +142,20 @@ func (m *medicineRepo) GetForDate(date time.Time) ([]api.Medicine, error) {
 	weekday := date.Weekday()
 	check := func(m api.Medicine) bool {
 		switch weekday {
-		case time.Monday: return m.Schedule.Mo
-		case time.Tuesday: return m.Schedule.Tu
-		case time.Wednesday: return m.Schedule.We
-		case time.Thursday: return m.Schedule.Th
-		case time.Friday: return m.Schedule.Fr
-		case time.Saturday: return m.Schedule.Sa
-		case time.Sunday: return m.Schedule.Su
+		case time.Monday:
+			return m.Schedule.Mo
+		case time.Tuesday:
+			return m.Schedule.Tu
+		case time.Wednesday:
+			return m.Schedule.We
+		case time.Thursday:
+			return m.Schedule.Th
+		case time.Friday:
+			return m.Schedule.Fr
+		case time.Saturday:
+			return m.Schedule.Sa
+		case time.Sunday:
+			return m.Schedule.Su
 		}
 		return false
 	}
