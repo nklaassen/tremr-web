@@ -32,3 +32,5 @@ function onSignin() {
 	})
 	return false
 }
+
+document.getElementById('signin_form').onsubmit = onSignin

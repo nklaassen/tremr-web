@@ -43,3 +43,5 @@ function onSignup() {
 	})
 	return false
 }
+
+document.getElementById('signup_form').onsubmit = onSignup
