@@ -44,20 +44,49 @@ function YearFunction() {
 	global_chart.update()
 }
 
+function onSignOut(e) {
+	console.log("in onsignout")
+	localStorage.removeItem('token')
+	e.preventDefault()
+}
+
+function fetchWithAuth(url) {
+	// get the jwt from window.localStorage
+	let token = localStorage.getItem('token')
+	if (token === null) {
+		// if there is no auth token, redirect to signin page
+		window.location.replace('/signin.html')
+	}
+
+	// fetch with the jwt in the authorization header
+	return fetch(url, {
+		headers: {
+			'Authorization': token
+		}
+	}).then(response => {
+		if (response.status == 401) {
+			// if server returned StatusUnauthorized, clear the token and redirect to signin page
+			localStorage.removeItem('token')
+			window.location.replace('/signin.html')
+		}
+		return response
+	})
+}
+
 function getTremors() {
-	return fetch("/api/tremors").then(
+	return fetchWithAuth("/api/tremors").then(
 		response => response.json()
 	)
 }
 
 function getMedicines() {
-	return fetch("/api/meds").then(
+	return fetchWithAuth("/api/meds").then(
 		response => response.json()
 	)
 }
 
 function getExercises() {
-	return fetch("/api/exercises").then(
+	return fetchWithAuth("/api/exercises").then(
 		response => response.json()
 	)
 }

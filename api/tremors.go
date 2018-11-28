@@ -2,79 +2,71 @@ package api
 
 import (
 	"encoding/json"
-	"log"
+	"github.com/gorilla/mux"
 	"net/http"
 	"time"
 )
 
 type Tremor struct {
-	Tid      int64      `json:"tid"`
-	Resting  *int       `json:"resting"`
-	Postural *int       `json:"postural"`
-	Date     *time.Time `json:"date"`
+	TID      int64     `json:"tid"`
+	UID      int64     `json:"uid"`
+	Resting  int       `json:"resting"`
+	Postural int       `json:"postural"`
+	Date     time.Time `json:"date"`
 }
 
 type TremorRepo interface {
-	Add(*Tremor) error
-	GetAll() ([]Tremor, error)
-	GetSince(time.Time) ([]Tremor, error)
+	Add(uid int64, tremor *Tremor) error
+	GetAll(uid int64) ([]Tremor, error)
+	GetSince(uid int64, since time.Time) ([]Tremor, error)
 }
 
-func getTremors(tremorRepo TremorRepo) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		tremors, err := tremorRepo.GetAll()
+func tremorsRouter(repo TremorRepo) *mux.Router {
+	router := mux.NewRouter()
+	router.Handle("/tremors", getTremorsSince(repo)).Queries("since", "{since}").Methods(http.MethodGet)
+	router.Handle("/tremors", getTremors(repo)).Methods(http.MethodGet)
+	router.Handle("/tremors", addTremor(repo)).Methods(http.MethodPost)
+	return router
+}
+
+func getTremors(tremorRepo TremorRepo) HttpErrorHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		uid := r.Context().Value("uid").(int64)
+		tremors, err := tremorRepo.GetAll(uid)
 		if err != nil {
-			log.Print(err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			return err
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(tremors)
+		return nil
 	}
 }
 
-func getTremorsSince(tremorRepo TremorRepo) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
+func getTremorsSince(tremorRepo TremorRepo) HttpErrorHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		uid := r.Context().Value("uid").(int64)
 		timestring := r.FormValue("since")
-		if timestring == "" {
-			log.Print("invalid query")
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
 		timestamp, err := time.Parse(time.RFC3339, timestring)
 		if err != nil {
-			log.Print("invalid timestamp")
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
+			return HandlerError{err, http.StatusBadRequest}
 		}
-		tremors, err := tremorRepo.GetSince(timestamp)
+		tremors, err := tremorRepo.GetSince(uid, timestamp)
 		if err != nil {
-			log.Print(err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			return HandlerError{err, http.StatusInternalServerError}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(tremors)
+		return nil
 	}
 }
 
-func addTremor(tremorRepo TremorRepo) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
+func addTremor(tremorRepo TremorRepo) HttpErrorHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		uid := r.Context().Value("uid").(int64)
 		var tremor Tremor
 		if err := json.NewDecoder(r.Body).Decode(&tremor); err != nil {
-			log.Print("decode error: ", err)
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
+			return HandlerError{err, http.StatusBadRequest}
 		}
-		if tremor.Resting == nil || tremor.Postural == nil {
-			log.Print("invalid json request")
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
-		if err := tremorRepo.Add(&tremor); err != nil {
-			log.Print("database error: ", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
+		return tremorRepo.Add(uid, &tremor)
 	}
 }

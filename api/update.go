@@ -6,28 +6,33 @@ import (
 	"os/exec"
 )
 
-func update(reboot chan struct{}) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
+func update(reboot chan struct{}) HttpErrorHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		log.Println("running git pull...")
 		cmd := exec.Command("git", "pull")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			http.Error(w, "git pull failed", http.StatusInternalServerError)
-			w.Write(output)
 			log.Print(string(output))
-			return
+			return err
 		}
 
 		log.Println("running go build...")
 		cmd = exec.Command("go", "build")
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			http.Error(w, "go build failed", http.StatusInternalServerError)
-			w.Write(output)
 			log.Print(string(output))
-			return
+			return err
+		}
+
+		log.Println("running go test...")
+		cmd = exec.Command("go", "test")
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			log.Print(string(output))
+			return err
 		}
 
 		close(reboot)
+		return nil
 	}
 }

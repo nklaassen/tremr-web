@@ -10,7 +10,8 @@ import (
 
 const (
 	medicinesCreate = `create table if not exists medicines(
-		mid INTEGER PRIMARY KEY AUTOINCREMENT,
+		mid INTEGER PRIMARY KEY,
+		uid INTEGER,
 		name TEXT NOT NULL,
 		dosage TEXT NOT NULL,
 		mo BOOL NOT NULL,
@@ -24,17 +25,18 @@ const (
 		startdate DATETIME NOT NULL,
 		enddate DATETIME)`
 	medicineInsert = `insert into medicines(
+		uid,
 		name,
 		dosage,
 		mo,	tu, we, th, fr, sa, su,
 		reminder,
 		startdate,
 		enddate)
-		values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	medicineSelectBase = "select * from medicines"
+		values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	medicineSelectBase = "select * from medicines where uid = ?"
 	orderByStartDate   = " order by datetime(startdate) desc"
 	medicineSelectAll  = medicineSelectBase + orderByStartDate
-	medicineSelectMid  = medicineSelectBase + " where mid = ?"
+	medicineSelectMid  = medicineSelectBase + " and mid = ?"
 	medicineUpdate     = `update medicines set
 		name = ?,
 		dosage = ?,
@@ -48,9 +50,9 @@ const (
 		reminder = ?,
 		startdate = ?,
 		enddate = ?
-		where mid = ?`
-	selectForDate = ` where datetime(startdate) < datetime(?1) and
-		(enddate is null or datetime(enddate) > datetime(?1))`
+		where uid = ? and mid = ?`
+	selectForDate = ` and datetime(startdate) < datetime(?2) and
+		(enddate is null or datetime(enddate) > datetime(?2))`
 	medicineSelectForDate = medicineSelectBase + selectForDate
 )
 
@@ -62,11 +64,11 @@ type medicineRepo struct {
 	update     *sqlx.Stmt
 }
 
-func NewMedicineRepo(db *sqlx.DB) (apiMedicineRepo api.MedicineRepo, err error) {
+func NewMedicineRepo(db *sqlx.DB) (m *medicineRepo, err error) {
 	if _, err = db.Exec(medicinesCreate); err != nil {
 		return
 	}
-	m := new(medicineRepo)
+	m = new(medicineRepo)
 	if m.add, err = db.Preparex(medicineInsert); err != nil {
 		return
 	}
@@ -82,20 +84,15 @@ func NewMedicineRepo(db *sqlx.DB) (apiMedicineRepo api.MedicineRepo, err error) 
 	if m.update, err = db.Preparex(medicineUpdate); err != nil {
 		return
 	}
-	apiMedicineRepo = m
 	return
 }
 
-func (m *medicineRepo) Add(medicine *api.Medicine) error {
-	if medicine.StartDate == nil {
-		now := time.Now()
-		medicine.StartDate = &now
+func (m *medicineRepo) Add(uid int64, medicine *api.Medicine) error {
+	if medicine.StartDate == (time.Time{}) {
+		medicine.StartDate = time.Now()
 	}
-	if medicine.Reminder == nil {
-		f := false
-		medicine.Reminder = &f
-	}
-	_, err := m.add.Exec(medicine.Name,
+	_, err := m.add.Exec(uid,
+		medicine.Name,
 		medicine.Dosage,
 		medicine.Schedule.Mo,
 		medicine.Schedule.Tu,
@@ -110,14 +107,14 @@ func (m *medicineRepo) Add(medicine *api.Medicine) error {
 	return err
 }
 
-func (m *medicineRepo) GetAll() (medicines []api.Medicine, err error) {
-	err = m.getAll.Select(&medicines)
+func (m *medicineRepo) GetAll(uid int64) (medicines []api.Medicine, err error) {
+	err = m.getAll.Select(&medicines, uid)
 	return
 }
 
-func (m *medicineRepo) Get(mid int64) (medicine api.Medicine, err error) {
+func (m *medicineRepo) Get(uid int64, mid int64) (medicine api.Medicine, err error) {
 	var medicines []api.Medicine
-	if err = m.get.Select(&medicines, mid); err != nil {
+	if err = m.get.Select(&medicines, uid, mid); err != nil {
 		return
 	}
 	if len(medicines) == 0 {
@@ -133,9 +130,9 @@ func (m *medicineRepo) Get(mid int64) (medicine api.Medicine, err error) {
 }
 
 // Returns all medicines scheduled for date (startdate < date < enddate and weekday matches)
-func (m *medicineRepo) GetForDate(date time.Time) ([]api.Medicine, error) {
+func (m *medicineRepo) GetForDate(uid int64, date time.Time) ([]api.Medicine, error) {
 	var medicines []api.Medicine
-	if err := m.getForDate.Select(&medicines, date); err != nil {
+	if err := m.getForDate.Select(&medicines, uid, date); err != nil {
 		return nil, err
 	}
 
@@ -170,7 +167,7 @@ func (m *medicineRepo) GetForDate(date time.Time) ([]api.Medicine, error) {
 	return filtered, nil
 }
 
-func (m *medicineRepo) Update(medicine *api.Medicine) error {
+func (m *medicineRepo) Update(uid int64, medicine *api.Medicine) error {
 	result, err := m.update.Exec(medicine.Name,
 		medicine.Dosage,
 		medicine.Schedule.Mo,
@@ -183,6 +180,7 @@ func (m *medicineRepo) Update(medicine *api.Medicine) error {
 		medicine.Reminder,
 		medicine.StartDate,
 		medicine.EndDate,
+		uid,
 		medicine.MID)
 	if err != nil {
 		return err

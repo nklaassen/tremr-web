@@ -1,0 +1,27 @@
+<!--
+//  Name of file: signup.html
+//  Programmers: Nic Klaassen
+//  Team Name: Co.DEsign
+//  Changes been made: created file 2018-11-27
+// Known Bugs:
+-->
+
+<html>
+<head>
+  <title>Tremr - Sign Up</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <form id="signup_form" onsubmit="onSubmit()">
+    <input type="text" id="full_name" placeholder="Full Name" required><br>
+    <input type="text" id="email" placeholder="email" required><br>
+    <input type="password" id="password" placeholder="password" required><br>
+    <input type="password" id="confirm_password" placeholder="confirm password" required><br>
+    <input type="submit" value="Sign Up">
+  </form>
+</body>
+
+<a href="/signin.html" target="_self">Sign In</a>
+
+<script type="text/javascript" src="./signup.js"></script>

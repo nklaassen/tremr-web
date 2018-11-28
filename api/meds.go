@@ -2,129 +2,146 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/gorilla/mux"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
 )
 
+type Schedule struct {
+	Mo bool `json:"mo"`
+	Tu bool `json:"tu"`
+	We bool `json:"we"`
+	Th bool `json:"th"`
+	Fr bool `json:"fr"`
+	Sa bool `json:"sa"`
+	Su bool `json:"su"`
+}
+
 type Medicine struct {
-	MID       *int64  `json:"mid"`
-	Name      *string `json:"name"`
-	Dosage    *string `json:"dosage"`
-	*Schedule `json:"schedule"`
-	Reminder  *bool      `json:"reminder"`
-	StartDate *time.Time `json:"startdate"`
+	MID       int64  `json:"mid"`
+	UID       int64  `json:"uid"`
+	Name      string `json:"name"`
+	Dosage    string `json:"dosage"`
+	Schedule  `json:"schedule"`
+	Reminder  bool       `json:"reminder"`
+	StartDate time.Time  `json:"startdate"`
 	EndDate   *time.Time `json:"enddate"`
 }
 
 type MedicineRepo interface {
-	Add(*Medicine) error
-	GetAll() ([]Medicine, error)
-	Get(int64) (Medicine, error)
-	GetForDate(time.Time) ([]Medicine, error)
-	Update(*Medicine) error
+	Add(uid int64, med *Medicine) error
+	GetAll(uid int64) ([]Medicine, error)
+	Get(uid, mid int64) (Medicine, error)
+	GetForDate(uid int64, date time.Time) ([]Medicine, error)
+	Update(uid int64, med *Medicine) error
 }
 
-func getMedicines(medicineRepo MedicineRepo) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, h *http.Request) {
-		medicines, err := medicineRepo.GetAll()
+func medsRouter(repo MedicineRepo) *mux.Router {
+	router := mux.NewRouter()
+	router.Handle("/meds/{mid}", updateMedicine(repo)).Methods(http.MethodPut)
+	router.Handle("/meds/{mid}", getMedicine(repo)).Methods(http.MethodGet)
+	router.Handle("/meds", getMedicinesForDate(repo)).Queries("date", "{date}").Methods(http.MethodGet)
+	router.Handle("/meds", getMedicines(repo)).Methods(http.MethodGet)
+	router.Handle("/meds", addMedicine(repo)).Methods(http.MethodPost)
+	return router
+}
+
+func getMedicines(medicineRepo MedicineRepo) HttpErrorHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// get uid from token, added to context by authMiddleware
+		uid := r.Context().Value("uid").(int64)
+		medicines, err := medicineRepo.GetAll(uid)
 		if err != nil {
-			log.Print(err)
-			http.Error(w, "failed to get medicines from database", http.StatusInternalServerError)
-			return
+			return err
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(medicines)
+		return nil
 	}
 }
 
-func addMedicine(medicineRepo MedicineRepo) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
+func addMedicine(medicineRepo MedicineRepo) HttpErrorHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// get uid from token, added to context by authMiddleware
+		uid := r.Context().Value("uid").(int64)
+		// decode medicine from json in body of request
 		var medicine Medicine
 		if err := json.NewDecoder(r.Body).Decode(&medicine); err != nil {
-			log.Print("decode error: ", err)
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
+			return HandlerError{err, http.StatusBadRequest}
 		}
-		if medicine.Name == nil || medicine.Dosage == nil || medicine.Schedule == nil {
-			log.Print("invalid json request")
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
+		if medicine.Name == "" || medicine.Dosage == "" || medicine.Schedule == (Schedule{}) {
+			return HandlerError{errors.New("must populate name, dosage, schedule"), http.StatusBadRequest}
 		}
-		if err := medicineRepo.Add(&medicine); err != nil {
-			log.Print("database error: ", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
+		return medicineRepo.Add(uid, &medicine)
 	}
 }
 
-func getMedicine(medicineRepo MedicineRepo) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
+func getMedicine(medicineRepo MedicineRepo) HttpErrorHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// get uid from token, added to context by authMiddleware
+		uid := r.Context().Value("uid").(int64)
+		// get mid from url
 		vars := mux.Vars(r)
 		mid, err := strconv.ParseInt(vars["mid"], 10, 64)
 		if err != nil {
-			http.Error(w, "invalid medicine id in url", http.StatusBadRequest)
-			return
+			return HandlerError{err, http.StatusBadRequest}
 		}
 
-		medicine, err := medicineRepo.Get(mid)
+		medicine, err := medicineRepo.Get(uid, mid)
 		if err != nil {
-			log.Print("database error:", err)
-			http.Error(w, "failed to get medicine from database", http.StatusInternalServerError)
-			return
+			return err
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(medicine)
+		return nil
 	}
 }
 
-func getMedicinesForDate(medicineRepo MedicineRepo) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
+func getMedicinesForDate(medicineRepo MedicineRepo) HttpErrorHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// get uid from token, added to context by authMiddleware
+		uid := r.Context().Value("uid").(int64)
+		// get date from url
 		timestring := r.FormValue("date")
-		if timestring == "" {
-			log.Print("invalid query")
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
 		timestamp, err := time.Parse(time.RFC3339, timestring)
 		if err != nil {
-			log.Print("invalid timestamp")
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
+			return HandlerError{err, http.StatusBadRequest}
 		}
 
-		medicines, err := medicineRepo.GetForDate(timestamp)
+		medicines, err := medicineRepo.GetForDate(uid, timestamp)
 		if err != nil {
-			log.Print("database error:", err)
-			http.Error(w, "failed to get medicines from database", http.StatusInternalServerError)
-			return
+			return err
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(medicines)
+		return nil
 	}
 }
 
-func updateMedicine(medicineRepo MedicineRepo) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
+func updateMedicine(medicineRepo MedicineRepo) HttpErrorHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// get uid from token, added to context by authMiddleware
+		uid := r.Context().Value("uid").(int64)
+		// get mid from url
+		vars := mux.Vars(r)
+		mid, err := strconv.ParseInt(vars["mid"], 10, 64)
+		if err != nil {
+			return HandlerError{err, http.StatusBadRequest}
+		}
+		// parse medicine from json in body of request
 		var medicine Medicine
 		if err := json.NewDecoder(r.Body).Decode(&medicine); err != nil {
-			log.Print("decode error: ", err)
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
+			return HandlerError{err, http.StatusBadRequest}
 		}
-		if medicine.MID == nil || medicine.Name == nil || medicine.Dosage == nil ||
-			medicine.Schedule == nil || medicine.Reminder == nil {
-			log.Print("invalid json request")
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
+		if mid != medicine.MID {
+			return HandlerError{errors.New("mid in url and body do not match"), http.StatusBadRequest}
 		}
-		if err := medicineRepo.Update(&medicine); err != nil {
-			log.Print("database error:", err)
-			http.Error(w, "error updating database", http.StatusInternalServerError)
-			return
+		if medicine.MID == 0 || medicine.Name == "" || medicine.Dosage == "" ||
+			medicine.Schedule == (Schedule{}) {
+			return HandlerError{errors.New("must populate all fields for update"), http.StatusBadRequest}
 		}
+		return medicineRepo.Update(uid, &medicine)
 	}
 }

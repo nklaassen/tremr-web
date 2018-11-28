@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nklaassen/tremr-web/api"
@@ -18,51 +19,66 @@ import (
 	"time"
 )
 
-var apiContext *api.Context
+var router *mux.Router
+var token []byte
 
 func TestMain(m *testing.M) {
+	// open raw database
 	db, err := sqlx.Open("sqlite3", "test_db.sqlite3?_journal_mode=WAL")
 	if err != nil {
 		panic(err)
 	}
 
+	// clear all tables in case the db file already exists
 	_, err = db.Exec(`drop table if exists tremors;
 		drop table if exists medicines;
-		drop table if exists exercises`)
+		drop table if exists exercises;
+		drop table if exists users`)
 	if err != nil {
 		panic(err)
 	}
 
-	tremorRepo, err := database.NewTremorRepo(db)
+	// initialize the datastore
+	datastore, err := database.GetDataStore(db)
 	if err != nil {
 		panic(err)
 	}
 
-	medicineRepo, err := database.NewMedicineRepo(db)
+	// set up the api router
+	apiEnv := &api.Env{datastore, make(chan struct{})}
+	apiRouter := api.NewRouter(apiEnv)
+
+	// setup the global router which strips the /api prefix before sending to the apiRouter
+	router = mux.NewRouter()
+	router.PathPrefix("/api").Handler(http.StripPrefix("/api", apiRouter))
+
+	// create a user and get an authenticated token to use globally
+	user := map[string]interface{}{"email": "test@tremr.com", "password": "hunter2", "name": "tester 1"}
+	body, _ := json.Marshal(user)
+	_, err = request("POST", "/api/auth/signup", bytes.NewReader(body), http.StatusOK)
 	if err != nil {
 		panic(err)
 	}
-
-	exerciseRepo, err := database.NewExerciseRepo(db)
+	r, err := request("POST", "/api/auth/signin", bytes.NewReader(body), http.StatusOK)
 	if err != nil {
 		panic(err)
 	}
-
-	apiContext = &api.Context{tremorRepo, medicineRepo, exerciseRepo, make(chan struct{})}
+	token = r.Body.Bytes()
 
 	code := m.Run()
 	db.Close()
 	os.Exit(code)
 }
 
+// helper method for performing http requests
 func request(method, url string, body io.Reader, expect int) (r *httptest.ResponseRecorder, err error) {
 	request, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return
 	}
-	apiserver := api.NewRouter(apiContext)
+	request.Header.Set("Authorization", string(token))
 	r = httptest.NewRecorder()
-	apiserver.ServeHTTP(r, request)
+	router.ServeHTTP(r, request)
 	if r.Code != expect {
 		err = fmt.Errorf("Server Error: Returned %v instead of %v", r.Code, expect)
 		return
@@ -70,6 +86,7 @@ func request(method, url string, body io.Reader, expect int) (r *httptest.Respon
 	return
 }
 
+// helper method to generate fractal pseudo-random tremor data
 func fractal(a []int) {
 	if len(a) <= 2 {
 		return
@@ -164,7 +181,7 @@ func TestPostMedicine(t *testing.T) {
 			"startdate": "2018-08-01T00:00:00Z", "enddate": "2018-11-17T00:00:00Z"}`,
 		`{"name": "test med 3", "dosage": "20 mL", "schedule": {"mo": false, "tu": true, "th": true},
 			"startdate": "2018-01-01T00:00:00Z", "enddate": "2018-09-01T00:00:00Z"}`,
-		}
+	}
 	badTests := []string{
 		`{"dosage": "10 mL", "schedule": {"mo": true, "we": true}}`,
 		`{"name": "bad test med 4", "schedule": {"mo": false, "tu": true, "th": true},
@@ -200,6 +217,25 @@ func TestGetMedicines(t *testing.T) {
 	}
 }
 
+func TestGetMedicinesForDate(t *testing.T) {
+	datestring := "2018-11-27T00:00:00Z" // a tuesday
+	date, _ := time.Parse(time.RFC3339, datestring)
+	response, err := request(http.MethodGet, "/api/meds?date="+datestring, nil, http.StatusOK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var medicines []api.Medicine
+	if err := json.NewDecoder(response.Body).Decode(&medicines); err != nil {
+		t.Fatal("decode error for returned medicines:", err)
+		return
+	}
+	for _, med := range medicines {
+		if !med.Tu || date.Before(med.StartDate) || (med.EndDate != nil && date.After(*med.EndDate)) {
+			t.Error("getForDate returned a medicine not scheduled for that date")
+		}
+	}
+}
+
 func TestGetMedicine(t *testing.T) {
 	response, err := request(http.MethodGet, "/api/meds/1", nil, http.StatusOK)
 	if err != nil {
@@ -214,7 +250,7 @@ func TestGetMedicine(t *testing.T) {
 func TestUpdateMedicine(t *testing.T) {
 
 	// get medicine with mid 1
-	response, err := request(http.MethodGet, "/api/meds/3", nil, http.StatusOK)
+	response, err := request(http.MethodGet, "/api/meds/1", nil, http.StatusOK)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,9 +261,15 @@ func TestUpdateMedicine(t *testing.T) {
 
 	// update medicine
 	name := "updated medicine"
-	medicine.Name = &name
+	medicine.Name = name
 	medJson, _ := json.Marshal(medicine)
-	response, err = request(http.MethodPut, "/api/meds", bytes.NewReader(medJson), http.StatusOK)
+	response, err = request(http.MethodPut, "/api/meds/1", bytes.NewReader(medJson), http.StatusOK)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// make sure the wrong url gives us a StatusBadRequest
+	response, err = request(http.MethodPut, "/api/meds/3", bytes.NewReader(medJson), http.StatusBadRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +282,7 @@ func TestUpdateMedicine(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&medicine); err != nil {
 		t.Fatal("decode error for returned medicine:", err)
 	}
-	if *medicine.Name != name {
+	if medicine.Name != name {
 		t.Error("failed to update medicine name")
 	}
 }
@@ -253,7 +295,7 @@ func TestPostExercise(t *testing.T) {
 			"startdate": "2018-03-14T00:00:00Z", "enddate": "2018-11-16T00:00:00Z"}`,
 		`{"name": "test exercise 3", "unit": "2 miles", "schedule": {"su": true},
 			"startdate": "2017-12-03T00:00:00Z", "enddate": "2018-06-22T00:00:00Z"}`,
-		}
+	}
 	badTests := []string{
 		`{"unit": "10 reps", "schedule": {"mo": true, "we": true}}`,
 		`{"name": "bad test exercise 4", "schedule": {"mo": false, "tu": true, "th": true},
@@ -295,6 +337,25 @@ func TestGetExercise(t *testing.T) {
 	}
 }
 
+func TestGetExercisesForDate(t *testing.T) {
+	datestring := "2018-11-27T00:00:00Z" // a tuesday
+	date, _ := time.Parse(time.RFC3339, datestring)
+	response, err := request(http.MethodGet, "/api/exercises?date="+datestring, nil, http.StatusOK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exercises []api.Exercise
+	if err := json.NewDecoder(response.Body).Decode(&exercises); err != nil {
+		t.Fatal("decode error for returned exercises:", err)
+		return
+	}
+	for _, exer := range exercises {
+		if !exer.Tu || date.Before(exer.StartDate) || (exer.EndDate != nil && date.After(*exer.EndDate)) {
+			t.Error("getForDate returned a exercise not scheduled for that date")
+		}
+	}
+}
+
 func TestUpdateExercise(t *testing.T) {
 	// get exercise with eid 1
 	response, err := request(http.MethodGet, "/api/exercises/1", nil, http.StatusOK)
@@ -308,11 +369,18 @@ func TestUpdateExercise(t *testing.T) {
 
 	// update exercise
 	name := "updated exercise"
-	exercise.Name = &name
+	exercise.Name = name
 	medJson, _ := json.Marshal(exercise)
-	response, err = request(http.MethodPut, "/api/exercises", bytes.NewReader(medJson), http.StatusOK)
+	response, err = request(http.MethodPut, "/api/exercises/1", bytes.NewReader(medJson), http.StatusOK)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	// make sure the wrong url gives us a StatusBadRequest
+	response, err = request(http.MethodPut, "/api/exercises/3", bytes.NewReader(medJson),
+		http.StatusBadRequest)
+	if err != nil {
+		t.Error(err)
 	}
 
 	// make sure exercise actually got updated
@@ -323,7 +391,48 @@ func TestUpdateExercise(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&exercise); err != nil {
 		t.Fatal("decode error for returned exercise:", err)
 	}
-	if *exercise.Name != name {
+	if exercise.Name != name {
 		t.Error("failed to update exercise name")
+	}
+}
+
+func TestAuth(t *testing.T) {
+	request := func(method string, url string, token []byte, expect int) error {
+		request, err := http.NewRequest(method, url, nil)
+		if err != nil {
+			return err
+		}
+		request.Header.Set("Authorization", string(token))
+		r := httptest.NewRecorder()
+		router.ServeHTTP(r, request)
+		if r.Code != expect {
+			return fmt.Errorf("Server Error: Returned %v instead of %v", r.Code, expect)
+		}
+		return nil
+	}
+	// authenticated request
+	if err := request(http.MethodGet, "/api/exercises", token, http.StatusOK); err != nil {
+		t.Fatal(err)
+	}
+	// unauthenticated request
+	if err := request(http.MethodGet, "/api/exercises", []byte{}, http.StatusUnauthorized); err != nil {
+		t.Fatal(err)
+	}
+	// signup/signin are implicitly tested in TestMain
+}
+
+func TestGetUser(t *testing.T) {
+	response, err := request(http.MethodGet, "/api/users/1", nil, http.StatusOK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var user api.User
+	json.NewDecoder(response.Body).Decode(&user)
+	if user.Password != "" {
+		t.Error("GET /api/users/1 returned the users password!")
+	}
+	response, err = request(http.MethodGet, "/api/users/2", nil, http.StatusUnauthorized)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

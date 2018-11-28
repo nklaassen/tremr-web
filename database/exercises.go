@@ -10,7 +10,8 @@ import (
 
 const (
 	exercisesCreate = `create table if not exists exercises(
-		eid INTEGER PRIMARY KEY AUTOINCREMENT,
+		eid INTEGER PRIMARY KEY,
+		uid INTEGER,
 		name TEXT NOT NULL,
 		unit TEXT NOT NULL,
 		mo BOOL NOT NULL,
@@ -24,17 +25,18 @@ const (
 		startdate DATETIME NOT NULL,
 		enddate DATETIME)`
 	exerciseInsert = `insert into exercises(
+		uid,
 		name,
 		unit,
 		mo,	tu, we, th, fr, sa, su,
 		reminder,
 		startdate,
 		enddate)
-		values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	exerciseSelectBase = "select * from exercises"
+		values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	exerciseSelectBase = "select * from exercises where uid = ?"
 	//orderByStartDate   = " order by datetime(startdate) desc" defined in medicines.go
 	exerciseSelectAll = exerciseSelectBase + orderByStartDate
-	exerciseSelectEid = exerciseSelectBase + " where eid = ?"
+	exerciseSelectEid = exerciseSelectBase + " and eid = ?"
 	exerciseUpdate    = `update exercises set
 		name = ?,
 		unit = ?,
@@ -48,9 +50,9 @@ const (
 		reminder = ?,
 		startdate = ?,
 		enddate = ?
-		where eid = ?`
-	//selectForDate = ` where datetime(startdate) < datetime(?1) and
-	//	(enddate is null or datetime(enddate) > datetime(?1))` defined in medicines.go
+		where uid = ? and eid = ?`
+	//selectForDate = ` and datetime(startdate) < datetime(?2) and
+	//	(enddate is null or datetime(enddate) > datetime(?2))` defined in medicines.go
 	exerciseSelectForDate = exerciseSelectBase + selectForDate
 )
 
@@ -62,11 +64,11 @@ type exerciseRepo struct {
 	update     *sqlx.Stmt
 }
 
-func NewExerciseRepo(db *sqlx.DB) (apiExerciseRepo api.ExerciseRepo, err error) {
+func NewExerciseRepo(db *sqlx.DB) (e *exerciseRepo, err error) {
 	if _, err = db.Exec(exercisesCreate); err != nil {
 		return
 	}
-	e := new(exerciseRepo)
+	e = new(exerciseRepo)
 	if e.add, err = db.Preparex(exerciseInsert); err != nil {
 		return
 	}
@@ -82,20 +84,15 @@ func NewExerciseRepo(db *sqlx.DB) (apiExerciseRepo api.ExerciseRepo, err error) 
 	if e.update, err = db.Preparex(exerciseUpdate); err != nil {
 		return
 	}
-	apiExerciseRepo = e
 	return
 }
 
-func (e *exerciseRepo) Add(exercise *api.Exercise) error {
-	if exercise.StartDate == nil {
-		now := time.Now()
-		exercise.StartDate = &now
+func (e *exerciseRepo) Add(uid int64, exercise *api.Exercise) error {
+	if exercise.StartDate == (time.Time{}) {
+		exercise.StartDate = time.Now()
 	}
-	if exercise.Reminder == nil {
-		f := false
-		exercise.Reminder = &f
-	}
-	_, err := e.add.Exec(exercise.Name,
+	_, err := e.add.Exec(uid,
+		exercise.Name,
 		exercise.Unit,
 		exercise.Schedule.Mo,
 		exercise.Schedule.Tu,
@@ -110,14 +107,14 @@ func (e *exerciseRepo) Add(exercise *api.Exercise) error {
 	return err
 }
 
-func (e *exerciseRepo) GetAll() (exercises []api.Exercise, err error) {
-	err = e.getAll.Select(&exercises)
+func (e *exerciseRepo) GetAll(uid int64) (exercises []api.Exercise, err error) {
+	err = e.getAll.Select(&exercises, uid)
 	return
 }
 
-func (e *exerciseRepo) Get(eid int64) (exercise api.Exercise, err error) {
+func (e *exerciseRepo) Get(uid, eid int64) (exercise api.Exercise, err error) {
 	var exercises []api.Exercise
-	if err = e.get.Select(&exercises, eid); err != nil {
+	if err = e.get.Select(&exercises, uid, eid); err != nil {
 		return
 	}
 	if len(exercises) == 0 {
@@ -133,9 +130,9 @@ func (e *exerciseRepo) Get(eid int64) (exercise api.Exercise, err error) {
 }
 
 // Returns all exercises scheduled for date (startdate < date < enddate and weekday matches)
-func (e *exerciseRepo) GetForDate(date time.Time) ([]api.Exercise, error) {
+func (e *exerciseRepo) GetForDate(uid int64, date time.Time) ([]api.Exercise, error) {
 	var exercises []api.Exercise
-	if err := e.getForDate.Select(&exercises, date); err != nil {
+	if err := e.getForDate.Select(&exercises, uid, date); err != nil {
 		return nil, err
 	}
 
@@ -170,7 +167,7 @@ func (e *exerciseRepo) GetForDate(date time.Time) ([]api.Exercise, error) {
 	return filtered, nil
 }
 
-func (e *exerciseRepo) Update(exercise *api.Exercise) error {
+func (e *exerciseRepo) Update(uid int64, exercise *api.Exercise) error {
 	result, err := e.update.Exec(exercise.Name,
 		exercise.Unit,
 		exercise.Schedule.Mo,
@@ -183,6 +180,7 @@ func (e *exerciseRepo) Update(exercise *api.Exercise) error {
 		exercise.Reminder,
 		exercise.StartDate,
 		exercise.EndDate,
+		uid,
 		exercise.EID)
 	if err != nil {
 		return err

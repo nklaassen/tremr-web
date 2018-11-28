@@ -15,48 +15,29 @@ import (
 	"syscall"
 )
 
-func createApiContext(db *sqlx.DB, reboot chan struct{}) *api.Context {
-	tremorRepo, err := database.NewTremorRepo(db)
-	if err != nil {
-		log.Fatal("Failed to create TremorRepo: ", err)
-	}
-
-	medicineRepo, err := database.NewMedicineRepo(db)
-	if err != nil {
-		log.Fatal("Failed to create MedicineRepo: ", err)
-	}
-
-	exerciseRepo, err := database.NewExerciseRepo(db)
-	if err != nil {
-		log.Fatal("Failed to create ExerciseRepo: ", err)
-	}
-
-	return &api.Context{
-		TremorRepo:   tremorRepo,
-		MedicineRepo: medicineRepo,
-		ExerciseRepo: exerciseRepo,
-		Reboot:       reboot,
-	}
-}
-
 func serve(portNum string, reboot chan struct{}, shutdown chan struct{}) {
-	// Open database
+	// Open raw database
 	db, err := sqlx.Open("sqlite3", "db.sqlite3?_journal_mode=WAL")
 	if err != nil {
 		log.Fatal("Failed to open database: ", err)
 	}
 	defer db.Close()
 
+	// Get datastore
+	ds, err := database.GetDataStore(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Create API server
-	apiContext := createApiContext(db, reboot)
-	apiserver := api.NewRouter(apiContext)
+	apiserver := api.NewRouter(&api.Env{ds, reboot})
 
 	// Create fileserver out of www/ directory
 	fileserver := http.FileServer(http.Dir("www"))
 
 	// Set up router
 	router := mux.NewRouter()
-	router.PathPrefix("/api").Handler(apiserver).Methods("GET", "POST", "PUT")
+	router.PathPrefix("/api").Handler(http.StripPrefix("/api", apiserver))
 	router.PathPrefix("/").Handler(fileserver).Methods("GET")
 	loggedRouter := handlers.LoggingHandler(os.Stdout, router)
 
@@ -79,6 +60,7 @@ func serve(portNum string, reboot chan struct{}, shutdown chan struct{}) {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	// Get port num from cmd line arg, default to 8080
 	portNum := "8080"
 	if len(os.Args) > 1 {
@@ -93,10 +75,10 @@ func main() {
 	// Start a goroutine which shuts down the webserver on a signal,
 	//	or a send to the reboot channel
 	go func() {
-		c := make(chan os.Signal)
-		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+		sig := make(chan os.Signal)
+		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 		select {
-		case <-c:
+		case <-sig:
 			log.Print("Caught signal, shutting down server")
 		case <-reboot:
 			log.Print("Shutting down server and restarting go binary")

@@ -9,15 +9,16 @@ import (
 const (
 	tremorsCreate = `create table if not exists tremors(
 		tid INTEGER PRIMARY KEY AUTOINCREMENT,
+		uid INTEGER NOT NULL,
 		postural INTEGER NOT NULL,
 		resting INTEGER NOT NULL,
 		date DATETIME NOT NULL
 	)`
-	tremorInsert      = "insert into tremors(postural, resting, date) values(?, ?, ?)"
-	tremorSelectBase  = "select * from tremors"
+	tremorInsert      = "insert into tremors(uid, postural, resting, date) values(?, ?, ?, ?)"
+	tremorSelectBase  = "select * from tremors where uid = ?"
 	orderByDate       = " order by datetime(date)"
 	tremorSelectAll   = tremorSelectBase + orderByDate
-	tremorSelectSince = tremorSelectBase + " where datetime(date) > datetime(?)" + orderByDate
+	tremorSelectSince = tremorSelectBase + " and datetime(date) > datetime(?)" + orderByDate
 )
 
 type tremorRepo struct {
@@ -26,7 +27,7 @@ type tremorRepo struct {
 	getSince *sqlx.Stmt
 }
 
-func NewTremorRepo(db *sqlx.DB) (api.TremorRepo, error) {
+func NewTremorRepo(db *sqlx.DB) (*tremorRepo, error) {
 	_, err := db.Exec(tremorsCreate)
 	if err != nil {
 		return nil, err
@@ -47,21 +48,20 @@ func NewTremorRepo(db *sqlx.DB) (api.TremorRepo, error) {
 	return t, nil
 }
 
-func (t *tremorRepo) Add(tremor *api.Tremor) (err error) {
-	if tremor.Date == nil {
-		now := time.Now()
-		tremor.Date = &now
+func (t *tremorRepo) Add(uid int64, tremor *api.Tremor) (err error) {
+	if tremor.Date == (time.Time{}) {
+		tremor.Date = time.Now()
 	}
-	_, err = t.add.Exec(tremor.Postural, tremor.Resting, tremor.Date)
+	_, err = t.add.Exec(uid, tremor.Postural, tremor.Resting, tremor.Date)
 	return
 }
 
-func (t *tremorRepo) GetAll() (tremors []api.Tremor, err error) {
-	err = t.getAll.Select(&tremors)
+func (t *tremorRepo) GetAll(uid int64) (tremors []api.Tremor, err error) {
+	err = t.getAll.Select(&tremors, uid)
 	return
 }
 
-func (t *tremorRepo) GetSince(timestamp time.Time) (tremors []api.Tremor, err error) {
-	err = t.getSince.Select(&tremors, timestamp)
+func (t *tremorRepo) GetSince(uid int64, timestamp time.Time) (tremors []api.Tremor, err error) {
+	err = t.getSince.Select(&tremors, uid, timestamp)
 	return
 }
