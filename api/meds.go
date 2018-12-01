@@ -43,6 +43,7 @@ func medsRouter(repo MedicineRepo) *mux.Router {
 	router.Handle("/meds/{mid}", updateMedicine(repo)).Methods(http.MethodPut)
 	router.Handle("/meds/{mid}", getMedicine(repo)).Methods(http.MethodGet)
 	router.Handle("/meds", getMedicinesForDate(repo)).Queries("date", "{date}").Methods(http.MethodGet)
+	router.Handle("/meds", getMedicines(repo)).Queries("uid", "{uid}").Methods(http.MethodGet)
 	router.Handle("/meds", getMedicines(repo)).Methods(http.MethodGet)
 	router.Handle("/meds", addMedicine(repo)).Methods(http.MethodPost)
 	return router
@@ -50,9 +51,26 @@ func medsRouter(repo MedicineRepo) *mux.Router {
 
 func getMedicines(medicineRepo MedicineRepo) HttpErrorHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
+		var forUid int64
+		var err error
 		// get uid from token, added to context by authMiddleware
-		uid := r.Context().Value("uid").(int64)
-		medicines, err := medicineRepo.GetAll(uid)
+		tokenUid := r.Context().Value("uid").(int64)
+
+		// if the logged in user is trying to read the meds of another user
+		requestedUidString := r.FormValue("uid")
+		if requestedUidString == "" {
+			// default to the logged in user
+			forUid = tokenUid
+		} else {
+			// else get the meds for the uid requested in the url
+			// FIXME: need to add authentication here - make sure that user has actually shared with us
+			forUid, err = strconv.ParseInt(requestedUidString, 10, 64)
+			if err != nil {
+				return HandlerError{err, http.StatusBadRequest}
+			}
+		}
+
+		medicines, err := medicineRepo.GetAll(forUid)
 		if err != nil {
 			return err
 		}

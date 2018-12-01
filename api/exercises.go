@@ -33,6 +33,7 @@ func exercisesRouter(repo ExerciseRepo) *mux.Router {
 	r.Handle("/exercises/{eid}", updateExercise(repo)).Methods(http.MethodPut)
 	r.Handle("/exercises/{eid}", getExercise(repo)).Methods(http.MethodGet)
 	r.Handle("/exercises", getExercisesForDate(repo)).Queries("date", "{date}").Methods(http.MethodGet)
+	r.Handle("/exercises", getExercises(repo)).Queries("uid", "{uid}").Methods(http.MethodGet)
 	r.Handle("/exercises", getExercises(repo)).Methods(http.MethodGet)
 	r.Handle("/exercises", addExercise(repo)).Methods(http.MethodPost)
 	return r
@@ -40,9 +41,26 @@ func exercisesRouter(repo ExerciseRepo) *mux.Router {
 
 func getExercises(exerciseRepo ExerciseRepo) HttpErrorHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
+		var forUid int64
+		var err error
 		// get uid from token, added to context by authMiddleware
-		uid := r.Context().Value("uid").(int64)
-		exercises, err := exerciseRepo.GetAll(uid)
+		tokenUid := r.Context().Value("uid").(int64)
+
+		// if the logged in user is trying to read the exercises of another user
+		requestedUidString := r.FormValue("uid")
+		if requestedUidString == "" {
+			// default to the logged in user
+			forUid = tokenUid
+		} else {
+			// else get the exercises for the uid requested in the url
+			// FIXME: need to add authentication here - make sure that user has actually shared with us
+			forUid, err = strconv.ParseInt(requestedUidString, 10, 64)
+			if err != nil {
+				return HandlerError{err, http.StatusBadRequest}
+			}
+		}
+
+		exercises, err := exerciseRepo.GetAll(forUid)
 		if err != nil {
 			return err
 		}

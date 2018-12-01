@@ -8,31 +8,40 @@ import (
 	"strconv"
 )
 
+type UserWithoutPassword struct {
+	Uid   int64  `json:"uid"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
+}
 type User struct {
-	Uid      int64  `json:"uid"`
-	Email    string `json:"email"`
+	UserWithoutPassword
 	Password string `json:"password"`
-	Name     string `json:"name"`
+}
+
+type Link struct {
+	Source int64 `json:"from"`
+	Dest   int64 `json:"to"`
 }
 
 type UserRepo interface {
 	Add(*User) error
 	GetFromUid(int64) (User, error)
 	GetFromEmail(string) (User, error)
+	AddLink(from, to int64) error
+	GetIncomingLinks(int64) ([]UserWithoutPassword, error)
+	GetOutgoingLinks(int64) ([]UserWithoutPassword, error)
 }
 
 func userRouter(repo UserRepo) *mux.Router {
 	router := mux.NewRouter()
-	router.Handle("/users/{uid}", getUser(repo)).Methods(http.MethodGet)
+	router.Handle("/users/{uid}", getUserInfo(repo)).Methods(http.MethodGet)
+	router.Handle("/users/links/in", getIncomingLinks(repo)).Methods(http.MethodGet)
+	router.Handle("/users/links/out", getOutgoingLinks(repo)).Methods(http.MethodGet)
+	router.Handle("/users/links/out", link(repo)).Methods(http.MethodPost)
 	return router
 }
 
-func getUser(userRepo UserRepo) HttpErrorHandler {
-	type UserWithoutPassword struct {
-		Uid   int64  `json:"uid"`
-		Email string `json:"email"`
-		Name  string `json:"name"`
-	}
+func getUserInfo(userRepo UserRepo) HttpErrorHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		// get uid from token, added to context by authMiddleware
 		tokenUid := r.Context().Value("uid").(int64)
@@ -66,6 +75,63 @@ func getUser(userRepo UserRepo) HttpErrorHandler {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(userWithoutPassword)
+		return nil
+	}
+}
+
+func link(userRepo UserRepo) HttpErrorHandler {
+	type email struct {
+		Email string `json:"email"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// get uid from token, added to context by authMiddleware
+		tokenUid := r.Context().Value("uid").(int64)
+
+		var e email
+		if err := json.NewDecoder(r.Body).Decode(&e); err != nil {
+			return HandlerError{err, http.StatusBadRequest}
+		}
+
+		otherUser, err := userRepo.GetFromEmail(e.Email)
+		if err != nil {
+			switch err.(type) {
+			case ErrUserDoesNotExist:
+				return HandlerError{err, http.StatusBadRequest}
+			default:
+				return err
+			}
+		}
+
+		return userRepo.AddLink(tokenUid, otherUser.Uid)
+	}
+}
+
+func getIncomingLinks(userRepo UserRepo) HttpErrorHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// get uid from token, added to context by authMiddleware
+		tokenUid := r.Context().Value("uid").(int64)
+
+		users, err := userRepo.GetIncomingLinks(tokenUid)
+		if err != nil {
+			return err
+		}
+
+		json.NewEncoder(w).Encode(users)
+		return nil
+	}
+}
+
+func getOutgoingLinks(userRepo UserRepo) HttpErrorHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		// get uid from token, added to context by authMiddleware
+		tokenUid := r.Context().Value("uid").(int64)
+
+		users, err := userRepo.GetOutgoingLinks(tokenUid)
+		if err != nil {
+			return err
+		}
+
+		json.NewEncoder(w).Encode(users)
 		return nil
 	}
 }
