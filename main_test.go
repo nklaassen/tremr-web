@@ -74,6 +74,8 @@ func TestMain(m *testing.M) {
 		globalAuthTokens = append(globalAuthTokens, string(r.Body.Bytes()))
 	}
 
+	rand.Seed(0xdeadbeef)
+
 	code := m.Run()
 	db.Close()
 	os.Exit(code)
@@ -122,7 +124,7 @@ func fractal(a []int) {
 func TestPostTremor(t *testing.T) {
 	for _, token := range globalAuthTokens {
 		vals := [800]int{}
-		vals[0] = rand.Intn(10) + 15
+		vals[0] = rand.Intn(10) + 25
 		vals[799] = rand.Intn(10) + 75
 		fractal(vals[:])
 		now := time.Now()

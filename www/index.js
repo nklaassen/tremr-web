@@ -11,9 +11,31 @@ var global_chart = null
 
 function loadCanvas() {
 	fillRandomColor()
-	loadData().then(data => {
+
+	// load data for the logged-in user and make the chart
+	loadData(0).then(data => {
 		makeChart(data)
-		WeekFunction()
+	})
+
+	// when the user select input is changed, load the data for that user and update the chart
+	let userSelectInput = document.getElementById('userSelectInput')
+	userSelectInput.onchange = function(event) {
+		loadData(event.target.value).then(data => {
+			makeChart(data)
+		})
+	}
+
+	// get the list of users who have shared their data with the logged in user
+	// use this to populate the user select input
+	fetchWithAuth('api/users/links/in').then(
+		response =>	response.json()
+	).then(function(users) {
+		users.forEach(function(user) {
+			let option = document.createElement('option')
+			option.value = user.uid
+			option.text = user.name
+			userSelectInput.add(option)
+		})
 	})
 }
 
@@ -44,10 +66,8 @@ function YearFunction() {
 	global_chart.update()
 }
 
-function onSignOut(e) {
-	console.log("in onsignout")
+function onSignOut() {
 	localStorage.removeItem('token')
-	e.preventDefault()
 }
 
 function fetchWithAuth(url) {
@@ -73,20 +93,32 @@ function fetchWithAuth(url) {
 	})
 }
 
-function getTremors() {
-	return fetchWithAuth("/api/tremors").then(
+function getTremors(uid) {
+	let url = "/api/tremors"
+	if (uid != 0) {
+		url = url + "?uid=" + uid
+	}
+	return fetchWithAuth(url).then(
 		response => response.json()
 	)
 }
 
-function getMedicines() {
-	return fetchWithAuth("/api/meds").then(
+function getMedicines(uid) {
+	let url = "/api/meds"
+	if (uid != 0) {
+		url += "?uid=" + uid
+	}
+	return fetchWithAuth(url).then(
 		response => response.json()
 	)
 }
 
-function getExercises() {
-	return fetchWithAuth("/api/exercises").then(
+function getExercises(uid) {
+	let url = "api/exercises"
+	if (uid != 0) {
+		url += "?uid=" + uid
+	}
+	return fetchWithAuth(url).then(
 		response => response.json()
 	)
 }
@@ -97,15 +129,15 @@ function Data(tremors, medicines, exercises) {
 	this.exercises = exercises
 }
 
-async function loadData() {
+async function loadData(uid) {
 	// load all data in parallel
-	tremorPromise = getTremors()
-	medicinePromise = getMedicines()
-	exercisePromise = getExercises()
+	let tremorPromise = getTremors(uid)
+	let medicinePromise = getMedicines(uid)
+	let exercisePromise = getExercises(uid)
 
-	tremors = await tremorPromise.catch(err => console.log("failed to get tremors", err))
-	medicines = await medicinePromise.catch(err => console.log("failed to get medicines", err))
-	exercises = await exercisePromise.catch(err => console.log("failed to get exercises", err))
+	let tremors = await tremorPromise.catch(err => console.log("failed to get tremors", err))
+	let medicines = await medicinePromise.catch(err => console.log("failed to get medicines", err))
+	let exercises = await exercisePromise.catch(err => console.log("failed to get exercises", err))
 
 	return new Data(tremors, medicines, exercises)
 }
@@ -256,5 +288,8 @@ function makeChart(data) {
 	})
 
 	let ctx = document.getElementById("myChart").getContext('2d');
+	if (global_chart) {
+		global_chart.destroy()
+	}
 	global_chart = new Chart(ctx, scatterChartOptions);
 }
