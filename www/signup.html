@@ -8,20 +8,62 @@
 
 <html>
 <head>
+<style>
+div {
+    width: 320px;
+    padding: 10px;
+    border: 5px solid gray;
+    margin: 0;
+    background-color: lightblue;
+}
+
+div1 {
+    width: 320px;
+    padding: 10px;
+    margin: 0;
+    color: rgb(242, 216, 254);
+}
+</style>
   <title>Tremr - Sign Up</title>
   <link rel="stylesheet" href="style.css">
 </head>
 
-<body>
+<body style="background-color:rgb(35,123,189);">
+ <br> 
+<br>
+<br> 
+  <header>
+    <center>
+<div1>
+ <font size="+8">TREMR</font>
+ </div1>
+<br>
+ <img src="tremr_app.png" alt="Tremr logo">
+ <br>
+ <br>
+ <div1>
+ <font size="+2"><i>"Track your Tremr, track your life"</font>
+</div1>
+    </center>
+  </header>
+<center>
+<br>
+<br>
+<div>
   <form id="signup_form">
     <input type="text" id="full_name" placeholder="Full Name" required><br>
+    <br>
     <input type="text" id="email" placeholder="email" required><br>
+     <br>
     <input type="password" id="password" placeholder="password" required><br>
+     <br>
     <input type="password" id="confirm_password" placeholder="confirm password" required><br>
+     <br>
     <input type="submit" value="Sign Up">
   </form>
 </body>
 
 <a href="/signin.html" target="_self">Sign In</a>
+</div>
 
 <script type="text/javascript" src="./signup.js"></script>
