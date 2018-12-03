@@ -31,7 +31,7 @@ type Medicine struct {
 }
 
 type MedicineRepo interface {
-	Add(uid int64, med *Medicine) error
+	Add(uid int64, med *Medicine) (int64, error)
 	GetAll(uid int64) ([]Medicine, error)
 	Get(uid, mid int64) (Medicine, error)
 	GetForDate(uid int64, date time.Time) ([]Medicine, error)
@@ -81,6 +81,9 @@ func getMedicines(medicineRepo MedicineRepo) HttpErrorHandler {
 }
 
 func addMedicine(medicineRepo MedicineRepo) HttpErrorHandler {
+	type midHelper struct {
+		mid int64
+	}
 	return func(w http.ResponseWriter, r *http.Request) error {
 		// get uid from token, added to context by authMiddleware
 		uid := r.Context().Value("uid").(int64)
@@ -92,7 +95,13 @@ func addMedicine(medicineRepo MedicineRepo) HttpErrorHandler {
 		if medicine.Name == "" || medicine.Dosage == "" || medicine.Schedule == (Schedule{}) {
 			return HandlerError{errors.New("must populate name, dosage, schedule"), http.StatusBadRequest}
 		}
-		return medicineRepo.Add(uid, &medicine)
+		mid, err := medicineRepo.Add(uid, &medicine)
+		if err != nil {
+			return err
+		}
+		w.Header().Set("Content-Type", "application")
+		w.Write([]byte(strconv.FormatInt(mid, 10)))
+		return nil
 	}
 }
 

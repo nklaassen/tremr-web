@@ -87,11 +87,11 @@ func NewMedicineRepo(db *sqlx.DB) (m *medicineRepo, err error) {
 	return
 }
 
-func (m *medicineRepo) Add(uid int64, medicine *api.Medicine) error {
+func (m *medicineRepo) Add(uid int64, medicine *api.Medicine) (mid int64, err error) {
 	if medicine.StartDate == (time.Time{}) {
 		medicine.StartDate = time.Now()
 	}
-	_, err := m.add.Exec(uid,
+	result, err := m.add.Exec(uid,
 		medicine.Name,
 		medicine.Dosage,
 		medicine.Schedule.Mo,
@@ -104,7 +104,10 @@ func (m *medicineRepo) Add(uid int64, medicine *api.Medicine) error {
 		medicine.Reminder,
 		medicine.StartDate,
 		medicine.EndDate)
-	return err
+	if err != nil {
+		return
+	}
+	return result.LastInsertId()
 }
 
 func (m *medicineRepo) GetAll(uid int64) (medicines []api.Medicine, err error) {

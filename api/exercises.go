@@ -21,7 +21,7 @@ type Exercise struct {
 }
 
 type ExerciseRepo interface {
-	Add(uid int64, exer *Exercise) error
+	Add(uid int64, exer *Exercise) (int64, error)
 	GetAll(uid int64) ([]Exercise, error)
 	Get(uid, eid int64) (Exercise, error)
 	GetForDate(uid int64, date time.Time) ([]Exercise, error)
@@ -82,7 +82,13 @@ func addExercise(exerciseRepo ExerciseRepo) HttpErrorHandler {
 		if exercise.Name == "" || exercise.Unit == "" || exercise.Schedule == (Schedule{}) {
 			return HandlerError{errors.New("must populate name, unit, schedule"), http.StatusBadRequest}
 		}
-		return exerciseRepo.Add(uid, &exercise)
+		eid, err := exerciseRepo.Add(uid, &exercise)
+		if err != nil {
+			return err
+		}
+		w.Header().Set("Content-Type", "application")
+		w.Write([]byte(strconv.FormatInt(eid, 10)))
+		return nil
 	}
 }
 

@@ -87,11 +87,11 @@ func NewExerciseRepo(db *sqlx.DB) (e *exerciseRepo, err error) {
 	return
 }
 
-func (e *exerciseRepo) Add(uid int64, exercise *api.Exercise) error {
+func (e *exerciseRepo) Add(uid int64, exercise *api.Exercise) (eid int64, err error) {
 	if exercise.StartDate == (time.Time{}) {
 		exercise.StartDate = time.Now()
 	}
-	_, err := e.add.Exec(uid,
+	result, err := e.add.Exec(uid,
 		exercise.Name,
 		exercise.Unit,
 		exercise.Schedule.Mo,
@@ -104,7 +104,10 @@ func (e *exerciseRepo) Add(uid int64, exercise *api.Exercise) error {
 		exercise.Reminder,
 		exercise.StartDate,
 		exercise.EndDate)
-	return err
+	if err != nil {
+		return
+	}
+	return result.LastInsertId()
 }
 
 func (e *exerciseRepo) GetAll(uid int64) (exercises []api.Exercise, err error) {
